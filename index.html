@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+  <title>EasyPiano</title>
+  <meta name="description" content="Apprendre le piano avec des partitions interactives : piano MIDI Bluetooth/USB ou clavier à l’écran.">
+  <link rel="manifest" href="manifest.webmanifest">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="EasyPiano">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <link rel="icon" href="icons/icon-192.png">
+  <meta name="theme-color" content="#151a33">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <div id="app">
+    <!-- Accueil -->
+    <main id="screen-home" class="screen">
+      <header class="topbar">
+        <div class="brand"><span class="logo">♪</span> EasyPiano</div>
+        <nav class="tabs" id="home-tabs">
+          <button class="tab active" data-tab="cours">Cours</button>
+          <button class="tab" data-tab="morceaux">Morceaux</button>
+          <button class="tab" data-tab="reglages">Réglages</button>
+        </nav>
+        <div class="input-status" id="input-status">—</div>
+      </header>
+      <section id="tab-cours" class="tab-panel"></section>
+      <section id="tab-morceaux" class="tab-panel" hidden></section>
+      <section id="tab-reglages" class="tab-panel" hidden></section>
+    </main>
+
+    <!-- Lecteur / Jeu -->
+    <main id="screen-player" class="screen" hidden>
+      <header class="topbar player-bar">
+        <button class="btn icon" id="btn-back" title="Retour">‹</button>
+        <div class="song-title"><span id="player-title">Titre</span><small id="player-sub"></small></div>
+        <div class="seg" id="seg-mode">
+          <button data-mode="learn" class="active">Apprendre</button>
+          <button data-mode="play">Jouer</button>
+          <button data-mode="demo">Écouter</button>
+        </div>
+        <div class="seg" id="seg-hands">
+          <button data-hands="L">Gauche</button>
+          <button data-hands="RL" class="active">Les deux</button>
+          <button data-hands="R">Droite</button>
+        </div>
+        <div class="tempo">
+          <button class="btn icon small" id="tempo-minus">−</button>
+          <span id="tempo-label">100 %</span>
+          <button class="btn icon small" id="tempo-plus">+</button>
+        </div>
+        <button class="btn icon toggle" id="btn-metro" title="Métronome">⏱</button>
+        <button class="btn icon toggle" id="btn-names" title="Noms des notes">Do</button>
+        <button class="btn icon toggle" id="btn-hint" title="Aide">?</button>
+      </header>
+      <section class="score-area">
+        <div id="score"></div>
+        <div id="status-strip" class="status-strip"></div>
+        <div id="countin" class="countin" hidden></div>
+        <div id="overlay-start" class="overlay">
+          <div class="card">
+            <h2 id="start-title">Prêt ?</h2>
+            <div id="lesson-text" class="lesson-text"></div>
+            <p id="start-input" class="muted"></p>
+            <button class="btn primary big" id="btn-start">Commencer</button>
+          </div>
+        </div>
+        <div id="overlay-result" class="overlay" hidden>
+          <div class="card">
+            <div class="stars" id="result-stars"></div>
+            <h2 id="result-title">Bravo !</h2>
+            <p id="result-text"></p>
+            <div class="row">
+              <button class="btn" id="btn-result-back">Retour</button>
+              <button class="btn primary" id="btn-result-replay">Rejouer</button>
+              <button class="btn primary" id="btn-result-next">Suivant ›</button>
+            </div>
+          </div>
+        </div>
+        <div id="overlay-hint" class="overlay" hidden>
+          <div class="card">
+            <h2>Conseil</h2>
+            <p id="hint-text"></p>
+            <button class="btn primary" id="btn-hint-close">OK</button>
+          </div>
+        </div>
+      </section>
+      <section class="controls">
+        <button class="btn" id="btn-restart">↺ Recommencer</button>
+        <button class="btn primary" id="btn-playpause">▶ Lecture</button>
+        <div class="live" id="live-info"></div>
+      </section>
+      <section id="keyboard" class="keyboard-area"></section>
+    </main>
+  </div>
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>
