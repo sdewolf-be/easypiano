@@ -46,6 +46,29 @@ Si ton piano est muet, coche « Faire sonner les notes MIDI dans l'appli » dans
 Sur ordinateur, Chrome, Edge ou Firefox gèrent le MIDI directement (piano en USB ou en Bluetooth via le système).
 Sans piano, le clavier à l'écran et les touches `A W S E D F T G Y H U J K` du clavier d'ordinateur permettent de tester.
 
+## EasyPiano Junior (3 à 6 ans)
+
+Une variante pour les petits, servie à l'adresse `junior/` du même site (`https://<utilisateur>.github.io/easypiano/junior/`),
+installable comme une seconde appli sur l'écran d'accueil. Elle réutilise le moteur MIDI et le synthétiseur de l'appli principale.
+
+- **Piou**, un poussin mascotte, présente chaque étape dans une bulle et la **lit à voix haute** (synthèse vocale du navigateur, en français) :
+  l'enfant n'a pas besoin de savoir lire.
+- **Une couleur par note**, la même quelle que soit l'octave (Do rouge, Ré orange, Mi jaune, Fa vert, Sol bleu, La violet, Si rose) :
+  le clavier à l'écran porte des « gommettes » de ces couleurs, à reproduire avec des gommettes sur le vrai piano
+  (au moins de Do à Do autour du Do du milieu, idéalement aussi Sol, La, Si juste en dessous).
+- **Cursus de 6 chapitres / 31 activités** de 2 à 4 minutes, à raison de 3 activités par jour (≈ 10 minutes, les cœurs de l'accueil) :
+  Do‑Ré‑Mi → Fa‑Sol → La‑Si → la gamme → les notes d'en bas (Sol, La, Si graves) → Joyeux anniversaire.
+  Types d'activités : découverte d'une note, « trouve la note » (par le nom ou par la couleur), écho (rejouer une suite de 2‑3 notes),
+  oreille (retrouver une note entendue), mélodie note après note (Mi‑Ré‑Do, Au clair de la lune, Ah ! vous dirai‑je maman,
+  la gamme, Frère Jacques, Joyeux anniversaire) et la fête finale.
+- **Gamification** : étoiles par activité, activités débloquées une à une, gommette par chapitre terminé, séance du jour, confettis.
+- **Piano libre** (Piou dit le nom des notes jouées) et **Mes chansons** (rejouer les chansons débloquées).
+- **Coin des parents** (appui long sur la roue ⚙︎) : choix du piano MIDI, tolérance d'octave (une bonne note dans n'importe quelle
+  octave est acceptée, par défaut), voix, noms des notes, déblocage de tout, remise à zéro.
+
+Les fichiers sont dans `junior/` (`index.html`, `css/junior.css`, `js/app.js` écrans et entrées, `js/course.js` cursus,
+`js/songs.js` chansons, `js/activities.js` moteurs des jeux, `js/mascot.js` Piou, `js/kidkeyboard.js` clavier coloré, `js/fx.js` confettis et sons).
+
 ## Mise en ligne
 
 Le dépôt contient un workflow GitHub Actions qui publie le site sur **GitHub Pages** à chaque push sur `main` :

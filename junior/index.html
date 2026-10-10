@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+  <title>EasyPiano Junior</title>
+  <meta name="description" content="Initiation au piano pour les petits (3 à 6 ans) : notes en couleurs, petits jeux et chansons avec Piou.">
+  <link rel="manifest" href="manifest.webmanifest">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="Piano Junior">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <link rel="icon" href="icons/icon-192.png">
+  <meta name="theme-color" content="#fff6d6">
+  <link rel="stylesheet" href="css/junior.css">
+</head>
+<body>
+  <div id="app">
+    <!-- Accueil -->
+    <main id="screen-home" class="screen">
+      <header class="jbar">
+        <div class="brand"><span class="logo">♪</span> EasyPiano <b>Junior</b></div>
+        <div class="daily" id="daily" title="Séance du jour"></div>
+        <div class="stars-total" id="stars-total">⭐ 0</div>
+        <button class="gear" id="btn-parents" type="button" title="Coin des parents (appui long)">⚙︎<span class="hold-ring"></span></button>
+      </header>
+      <section class="home-top">
+        <div class="mascot home-mascot" id="mascot-home"></div>
+        <div class="home-actions">
+          <button class="kbtn giant" id="btn-play" type="button">▶ Jouer</button>
+          <div class="home-sub" id="home-next"></div>
+          <div class="row">
+            <button class="kbtn" id="btn-free" type="button">🎹 Piano libre</button>
+            <button class="kbtn" id="btn-songs" type="button">🎵 Mes chansons</button>
+          </div>
+        </div>
+      </section>
+      <section class="path" id="path"></section>
+      <section class="stickers" id="stickers"></section>
+      <div class="input-status" id="input-status"></div>
+    </main>
+
+    <!-- Chapitre : liste des activités -->
+    <main id="screen-chapter" class="screen" hidden>
+      <header class="jbar">
+        <button class="kbtn icon" id="btn-chapter-back" type="button" title="Retour">‹</button>
+        <div class="title" id="chapter-title">Chapitre</div>
+      </header>
+      <section class="chapter-body">
+        <div class="mascot small" id="mascot-chapter"></div>
+        <div class="activities" id="chapter-activities"></div>
+      </section>
+    </main>
+
+    <!-- Mes chansons -->
+    <main id="screen-songs" class="screen" hidden>
+      <header class="jbar">
+        <button class="kbtn icon" id="btn-songs-back" type="button" title="Retour">‹</button>
+        <div class="title">🎵 Mes chansons</div>
+      </header>
+      <section class="chapter-body">
+        <div class="activities" id="songs-list"></div>
+      </section>
+    </main>
+
+    <!-- Jeu / activité -->
+    <main id="screen-play" class="screen" hidden>
+      <header class="jbar">
+        <button class="kbtn icon" id="btn-play-back" type="button" title="Retour">‹</button>
+        <div class="title" id="play-title">Activité</div>
+        <div class="play-dots" id="play-dots"></div>
+        <button class="kbtn icon" id="btn-voice" type="button" title="Voix de Piou">🔊</button>
+      </header>
+      <section class="play-top">
+        <div class="mascot small" id="mascot-play"></div>
+      </section>
+      <section class="stage" id="stage"></section>
+      <section class="kb-area" id="kb-area"></section>
+      <div id="overlay-result" class="overlay" hidden>
+        <div class="card">
+          <div class="stars" id="result-stars"></div>
+          <h2 id="result-title">Bravo !</h2>
+          <p id="result-text"></p>
+          <div class="row">
+            <button class="kbtn" id="btn-result-home" type="button">🏠</button>
+            <button class="kbtn" id="btn-result-replay" type="button">↺ Encore</button>
+            <button class="kbtn primary big" id="btn-result-next" type="button">Suite ▶</button>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <!-- Coin des parents -->
+    <main id="screen-parents" class="screen" hidden>
+      <header class="jbar">
+        <button class="kbtn icon" id="btn-parents-back" type="button" title="Retour">‹</button>
+        <div class="title">⚙︎ Coin des parents</div>
+      </header>
+      <section class="parents-body" id="parents-body"></section>
+    </main>
+
+    <canvas id="confetti" hidden></canvas>
+  </div>
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>

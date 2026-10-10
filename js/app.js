@@ -229,6 +229,10 @@ function renderSettings() {
         <p><button class="btn" id="btn-midi-request">Redemander l’accès MIDI</button> <button class="btn" id="btn-midi-copy">Copier le diagnostic</button></p></details>
     </div>
     <div class="setting">
+      <h3>EasyPiano Junior</h3>
+      <p>Une version pour les petits (3 à 6 ans) : notes en couleurs, petits jeux et chansons avec Piou le poussin. <a href="junior/" class="junior-link">Ouvrir EasyPiano Junior →</a></p>
+    </div>
+    <div class="setting">
       <h3>Son et affichage</h3>
       <p>Volume de l’appli (accompagnement, métronome, clavier à l’écran) : <input type="range" id="volume" min="0" max="1" step="0.05" value="${settings.volume}"></p>
       <label class="radio"><input type="checkbox" id="show-names" ${settings.showNames ? 'checked' : ''}> Afficher le nom des notes (Do, Ré, Mi…) dans la partition</label>
