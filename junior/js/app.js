@@ -451,7 +451,9 @@ function renderParents() {
     <div class="pcard">
       <h3>Progression</h3>
       <p>${doneCount} activité(s) terminée(s), ${allStars()} étoiles (dont ${store.bonus || 0} de défis du jour).</p>
-      <p><button class="kbtn small danger" id="p-reset" type="button">Remettre la progression à zéro</button></p>
+      <p class="reset-row"><button class="kbtn small danger" id="p-reset" type="button">Remettre la progression à zéro</button>
+      <button class="kbtn small" id="p-reset-cancel" type="button" hidden>Annuler</button></p>
+      <p class="muted" id="p-reset-status"></p>
     </div>
     <div class="pcard">
       <p><a href="../">← EasyPiano, la version pour les grands</a></p>
@@ -467,7 +469,18 @@ function renderParents() {
   root.querySelector('#p-names').addEventListener('change', (e) => { settings.showNames = e.target.checked; keyboard.setShowNames(settings.showNames); save(); });
   root.querySelector('#p-unlock').addEventListener('change', (e) => { settings.unlockAll = e.target.checked; save(); });
   root.querySelector('#p-volume').addEventListener('input', (e) => { settings.volume = parseFloat(e.target.value); synth.setVolume(settings.volume); save(); });
-  root.querySelector('#p-reset').addEventListener('click', () => { if (confirm('Effacer toute la progression ?')) { store.done = {}; store.days = {}; store.celebratedDays = {}; store.challenges = {}; store.bonus = 0; store.outfit = {}; save(); for (const m of Object.values(mascots)) m.setOutfit({}); renderParents(); } });
+  // Remise à zéro en deux clics (les boîtes de dialogue natives sont bloquées dans certains navigateurs iPad).
+  const resetBtn = root.querySelector('#p-reset'), resetCancel = root.querySelector('#p-reset-cancel'), resetStatus = root.querySelector('#p-reset-status');
+  let armed = false;
+  resetBtn.addEventListener('click', () => {
+    if (!armed) { armed = true; resetBtn.textContent = 'Oui, tout effacer'; resetCancel.hidden = false; resetStatus.textContent = 'Les étoiles, gommettes, déguisements et défis seront effacés (la voix des parents et les réglages sont conservés).'; return; }
+    store.done = {}; store.days = {}; store.celebratedDays = {}; store.challenges = {}; store.bonus = 0; store.outfit = {};
+    save();
+    for (const m of Object.values(mascots)) m.setOutfit({});
+    renderParents();
+    $('#p-reset-status').textContent = 'Progression remise à zéro.';
+  });
+  resetCancel.addEventListener('click', () => { armed = false; resetBtn.textContent = 'Remettre la progression à zéro'; resetCancel.hidden = true; resetStatus.textContent = ''; });
   bindClipRecorder(root);
 }
 $('#btn-parents-back').addEventListener('click', () => { stopRecording(); renderHome(); showScreen('screen-home'); });
