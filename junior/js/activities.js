@@ -262,10 +262,19 @@ export class EarActivity extends Activity {
     this.listening = true;
     this.playTarget();
   }
-  playTarget() {
+  // Joue la note à trouver : deux fois, longue et forte, sans parole par-dessus
+  // (sur iPad, la voix de synthèse baisse le son de l'appli).
+  async playTarget() {
+    this.mascot.hush();
     this.mascot.say('Écoute…', { mood: 'sing', speak: false });
-    this.playNote(this.target, 0.8);
-    this.later(900, () => { if (this.listening) this.mascot.say('C’était laquelle ?', { mood: 'think', speak: this.wrongHere === 0 }); });
+    const btn = this.stage.querySelector('.replay');
+    btn?.classList.add('playing');
+    for (let i = 0; i < 2; i++) {
+      this.synth.playNote(this.target, 1.6, 1.0);
+      if (!await this.sleep(1700)) return;
+    }
+    btn?.classList.remove('playing');
+    if (this.listening) this.mascot.say('C’était laquelle ?', { mood: 'think', speak: this.wrongHere === 0 && (this.prompts = (this.prompts || 0) + 1) <= 2 });
   }
   noteOn(midi) {
     if (!this.running || !this.listening || this.busy) { this.kb.setPressed(midi, 'down'); return; }

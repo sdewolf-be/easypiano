@@ -176,6 +176,8 @@ b { font-weight: 800; }
 .phrase { display: flex; gap: 14px; justify-content: center; flex-wrap: wrap; row-gap: 42px; }
 .melody-bar { display: flex; gap: 10px; justify-content: center; padding: 6px 0; }
 .replay { margin-top: 6px; }
+.replay.playing { animation: listening .5s ease-in-out infinite alternate; background: #e8f3ff; color: var(--accent); }
+@keyframes listening { from { transform: scale(1); } to { transform: scale(1.12); } }
 
 .legend { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
 .legend-item { display: inline-flex; flex-direction: column; align-items: center; justify-content: center; min-width: 44px; height: 44px; border-radius: 50%; background: var(--c); color: var(--ink); font-weight: 900; font-size: 15px; }
