@@ -8,6 +8,7 @@ import { Confetti, GameSounds } from './fx.js';
 import { CHAPTERS, ACTIVITIES, DAILY_GOAL, findActivity, chapterOf, isUnlocked, nextActivity, chapterDone, chapterStars, totalStars, songActivities, albumStickers, dailyChallenge, OUTFITS, unlockedOutfits } from './course.js';
 import { createActivity } from './activities.js';
 import { SONGS } from './songs.js';
+import { canUseMic, startRecording, importAudioFile, micErrorText } from './recorder.js';
 
 const STORE_KEY = 'easypiano.junior.v1';
 const $ = (sel) => document.querySelector(sel);
@@ -31,7 +32,7 @@ function load() {
   } catch (e) { /* ignore */ }
   return JSON.parse(JSON.stringify(defaults));
 }
-function save() { try { localStorage.setItem(STORE_KEY, JSON.stringify(store)); } catch (e) { /* ignore */ } }
+function save() { try { localStorage.setItem(STORE_KEY, JSON.stringify(store)); return true; } catch (e) { return false; } }
 const settings = store.settings;
 
 // ---------- Audio, entrées, mascottes ----------
@@ -69,7 +70,7 @@ function handleNote(e) {
 }
 const keyboard = new KidKeyboard($('#kb-area'), handleNote, { showNames: settings.showNames, low: 60, high: 72 });
 const midi = new MidiInput(handleNote);
-midi.onDevicesChanged = () => { updateInputStatus(); if (!$('#screen-parents').hidden) renderParents(); };
+midi.onDevicesChanged = () => { updateInputStatus(); if (!$('#screen-parents').hidden && !recording) renderParents(); };
 
 async function setupMidi(force = false) {
   if (!MidiInput.supported || settings.input === 'screen') return false;
@@ -439,14 +440,19 @@ function renderParents() {
       <label class="radio"><input type="checkbox" id="p-unlock" ${settings.unlockAll ? 'checked' : ''}> Débloquer toutes les activités</label>
       <p>Volume : <input type="range" id="p-volume" min="0" max="1" step="0.05" value="${settings.volume}"></p>
     </div>
-    <div class="pcard">
+    <div class="pcard voices">
       <h3>La voix des parents</h3>
-      <p>Enregistrez quelques phrases avec votre voix : Piou les utilisera à la place de la voix de synthèse (3 secondes maximum chacune).
-      Pour « Bravo ! » et « Oups ! », il dira la suite de la phrase avec la voix de synthèse.</p>
+      <div class="clip-status ${canUseMic() ? '' : 'warn'}" id="clip-status">${canUseMic()
+        ? 'Appuyez sur 🎙️, dites la phrase, elle s’arrête toute seule après 3 secondes.'
+        : 'Ce navigateur ne donne pas accès au micro (c’est le cas de MIDIWeb Browser). Deux solutions : 📁 importer un son enregistré avec le Dictaphone (Partager ▸ Enregistrer dans Fichiers), ou enregistrer dans Safari puis utiliser « Exporter les voix » et « Importer les voix » ci-dessous.'}</div>
+      <p>Piou utilisera votre voix à la place de la voix de synthèse. Pour « Bravo ! » et « Oups ! », il dira la suite de la phrase avec la voix de synthèse.</p>
       <div class="clips">${CLIP_DEFS.map(c => `<div class="clip ${store.clips[c.key] ? 'has' : ''}" data-key="${c.key}"><span class="clip-name">${c.name}</span>
-        <button class="kbtn small rec" type="button">🎙️ Enregistrer</button><button class="kbtn small play" type="button" ${store.clips[c.key] ? '' : 'disabled'}>▶</button><button class="kbtn small del" type="button" ${store.clips[c.key] ? '' : 'disabled'}>🗑</button>
+        <button class="kbtn small rec" type="button" ${canUseMic() ? '' : 'disabled'}>🎙️ Enregistrer</button>
+        <label class="kbtn small import" title="Importer un fichier son">📁<input type="file" accept="audio/*" hidden></label>
+        <button class="kbtn small play" type="button" ${store.clips[c.key] ? '' : 'disabled'}>▶</button><button class="kbtn small del" type="button" ${store.clips[c.key] ? '' : 'disabled'}>🗑</button>
         <span class="clip-ex">${c.example}</span></div>`).join('')}</div>
-      <p id="clip-status" class="muted"></p>
+      <p class="row-left"><button class="kbtn small" id="clips-export" type="button" ${Object.keys(store.clips).length ? '' : 'disabled'}>⬇ Exporter les voix</button>
+        <label class="kbtn small" id="clips-import">⬆ Importer les voix<input type="file" hidden></label></p>
     </div>
     <div class="pcard">
       <h3>Progression</h3>
@@ -493,45 +499,100 @@ const CLIP_DEFS = [
   { key: 'ecoute', name: 'Écoute…', example: 'Avant que Piou joue quelque chose.' },
   ...['do', 're', 'mi', 'fa', 'sol', 'la', 'si'].map((k, i) => ({ key: k, name: ['Do', 'Ré', 'Mi', 'Fa', 'Sol', 'La', 'Si'][i], example: 'Nom de la note, en piano libre.' })),
 ];
-let recorder = null, recTimer = null;
-function stopRecording() { if (recorder && recorder.state !== 'inactive') { try { recorder.stop(); } catch (e) { /* ignore */ } } clearTimeout(recTimer); }
+let recording = null;   // enregistrement en cours : { stop(), key }
+function stopRecording() { if (recording) recording.stop(); }
+
+function storeClip(key, clip) {
+  const prev = store.clips[key];
+  store.clips[key] = clip;
+  if (!save()) { if (prev) store.clips[key] = prev; else delete store.clips[key]; save(); return false; }
+  for (const m of Object.values(mascots)) m._decoded.clear();
+  return true;
+}
+
 function bindClipRecorder(root) {
   const status = root.querySelector('#clip-status');
-  const supported = !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia && window.MediaRecorder);
-  if (!supported) { status.textContent = 'L’enregistrement audio n’est pas disponible dans ce navigateur.'; for (const b of root.querySelectorAll('.clip .rec')) b.disabled = true; return; }
+  const say = (text, kind = '') => { status.textContent = text; status.className = 'clip-status ' + kind; };
+  const nameOfKey = (key) => CLIP_DEFS.find(c => c.key === key).name;
+  const refreshRow = (row) => {
+    const has = !!store.clips[row.dataset.key];
+    row.classList.toggle('has', has);
+    row.querySelector('.play').disabled = !has;
+    row.querySelector('.del').disabled = !has;
+    root.querySelector('#clips-export').disabled = !Object.keys(store.clips).length;
+  };
+  const saved = (row, key, clip, how) => {
+    if (!storeClip(key, clip)) { say('Mémoire pleine : impossible d’enregistrer ce son. Effacez d’autres voix.', 'warn'); return; }
+    refreshRow(row);
+    say(`« ${nameOfKey(key)} » ${how} (${Math.round(clip.data.length * 0.75 / 1024)} ko). Appuyez sur ▶ pour l’écouter.`, 'ok');
+  };
+
   for (const row of root.querySelectorAll('.clip')) {
     const key = row.dataset.key;
     const rec = row.querySelector('.rec'), play = row.querySelector('.play'), del = row.querySelector('.del');
+    const file = row.querySelector('.import input');
     rec.addEventListener('click', async () => {
-      if (recorder && recorder.state === 'recording') { stopRecording(); return; }
+      if (recording) { if (recording.key === key) stopRecording(); return; }
+      const ctx = synth.ensure();
+      mascots.home.hush();
+      say('Demande d’accès au micro…');
+      rec.disabled = true;
       try {
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        const mime = ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4', 'audio/ogg'].find(m => MediaRecorder.isTypeSupported(m)) || '';
-        recorder = new MediaRecorder(stream, mime ? { mimeType: mime } : undefined);
-        const chunks = [];
-        recorder.ondataavailable = (e) => { if (e.data.size) chunks.push(e.data); };
-        recorder.onstop = async () => {
-          stream.getTracks().forEach(t => t.stop());
-          rec.classList.remove('on'); rec.textContent = '🎙️ Enregistrer';
-          const blob = new Blob(chunks, { type: recorder.mimeType || mime || 'audio/webm' });
-          if (blob.size < 500) { status.textContent = 'Rien n’a été enregistré.'; return; }
-          const buf = await blob.arrayBuffer();
-          let bin = ''; const bytes = new Uint8Array(buf); for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000));
-          store.clips[key] = { mime: blob.type, data: btoa(bin) };
-          save();
-          for (const m of Object.values(mascots)) m._decoded.clear();
-          row.classList.add('has'); play.disabled = false; del.disabled = false;
-          status.textContent = `« ${CLIP_DEFS.find(c => c.key === key).name} » enregistré (${Math.round(blob.size / 1024)} ko).`;
-        };
-        recorder.start();
-        rec.classList.add('on'); rec.textContent = '⏹ Stop';
-        status.textContent = 'Enregistrement… parlez maintenant (3 s max).';
-        recTimer = setTimeout(stopRecording, 3000);
-      } catch (e) { status.textContent = 'Micro refusé ou indisponible : ' + (e && e.message ? e.message : e); }
+        const r = await startRecording(ctx, {
+          maxMs: 3000,
+          onStart: () => { rec.disabled = false; rec.classList.add('on'); rec.textContent = '⏹ Stop'; say(`🔴 Parlez maintenant : « ${nameOfKey(key)} »`, 'rec'); },
+        });
+        recording = { key, stop: r.stop };
+        const clip = await r.done;
+        saved(row, key, clip, 'enregistré');
+      } catch (e) {
+        say(micErrorText(e), 'warn');
+      } finally {
+        recording = null;
+        rec.disabled = false; rec.classList.remove('on'); rec.textContent = '🎙️ Enregistrer';
+      }
+    });
+    file.addEventListener('change', async () => {
+      const f = file.files && file.files[0];
+      file.value = '';
+      if (!f) return;
+      say('Lecture du fichier…');
+      try { saved(row, key, await importAudioFile(f, synth.ensure()), 'importé'); }
+      catch (e) { say('Ce fichier son n’a pas pu être lu. Essayez un fichier .m4a du Dictaphone.', 'warn'); }
     });
     play.addEventListener('click', () => { mascots.home.hush(); mascots.home._playClip(key); });
-    del.addEventListener('click', () => { delete store.clips[key]; save(); row.classList.remove('has'); play.disabled = true; del.disabled = true; status.textContent = 'Enregistrement effacé.'; });
+    del.addEventListener('click', () => { delete store.clips[key]; save(); for (const m of Object.values(mascots)) m._decoded.clear(); refreshRow(row); say(`« ${nameOfKey(key)} » effacé.`); });
   }
+
+  // Exporter / importer toutes les voix (pour passer de Safari à MIDIWeb Browser, ou d'un appareil à l'autre).
+  root.querySelector('#clips-export').addEventListener('click', async () => {
+    const json = JSON.stringify({ type: 'easypiano-junior-voices', version: 1, clips: store.clips });
+    const name = 'voix-piou.json';
+    try {
+      const fileObj = new File([json], name, { type: 'application/json' });
+      if (navigator.canShare && navigator.canShare({ files: [fileObj] })) { await navigator.share({ files: [fileObj], title: 'Voix de Piou' }); say('Voix exportées. Enregistrez le fichier dans Fichiers, puis importez-le dans l’autre navigateur.', 'ok'); return; }
+    } catch (e) { if (e && e.name === 'AbortError') return; }
+    const url = URL.createObjectURL(new Blob([json], { type: 'application/json' }));
+    const a = document.createElement('a'); a.href = url; a.download = name; document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 5000);
+    say('Fichier « voix-piou.json » téléchargé. Importez-le dans l’autre navigateur avec « Importer les voix ».', 'ok');
+  });
+  root.querySelector('#clips-import input').addEventListener('change', async (e) => {
+    const f = e.target.files && e.target.files[0];
+    e.target.value = '';
+    if (!f) return;
+    try {
+      const obj = JSON.parse(await f.text());
+      if (!obj || obj.type !== 'easypiano-junior-voices' || typeof obj.clips !== 'object') throw new Error('format');
+      const valid = Object.entries(obj.clips).filter(([k, c]) => CLIP_DEFS.some(d => d.key === k) && c && typeof c.data === 'string' && typeof c.mime === 'string');
+      const backup = { ...store.clips };
+      for (const [k, c] of valid) store.clips[k] = { mime: c.mime, data: c.data };
+      if (!save()) { store.clips = backup; save(); say('Mémoire pleine : import impossible.', 'warn'); return; }
+      for (const m of Object.values(mascots)) m._decoded.clear();
+      for (const row of root.querySelectorAll('.clip')) refreshRow(row);
+      say(`${valid.length} voix importée(s).`, 'ok');
+    } catch (err) { say('Ce fichier n’est pas un export de voix de Piou.', 'warn'); }
+  });
 }
 
 // Clavier d'ordinateur (pour tester sans piano) : a w s e d f t g y h u j k … et q z x c v b n pour Sol3…Si3

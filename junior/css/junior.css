@@ -347,3 +347,15 @@ b { font-weight: 800; }
 .song-row .act-title { min-width: 0; font-size: 16px; }
 .song-row .act-stars { font-size: 13px; }
 .song-row .sing-btn { flex: none; margin: 8px 10px 8px 0; align-self: center; font-size: 20px; padding: 8px 10px; }
+
+.kbtn:disabled { opacity: .35; cursor: not-allowed; box-shadow: none; transform: none; }
+.kbtn.import { display: inline-grid; place-items: center; cursor: pointer; }
+label.kbtn { display: inline-block; cursor: pointer; }
+.clip-status { border-radius: 12px; padding: 10px 12px; margin: 4px 0 10px; background: #eef6ff; color: #1a5fb4; font-weight: 800; }
+.clip-status.ok { background: #e6faec; color: #1f8a37; }
+.clip-status.warn { background: #fff4e0; color: #9a5300; }
+.clip-status.rec { background: #ffe5e5; color: #c62828; animation: recpulse .8s infinite alternate; }
+.row-left { display: flex; gap: 8px; flex-wrap: wrap; }
+.pcard.voices { grid-column: 1 / -1; }
+.pcard.voices .clips { grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); }
+.clip .rec { margin-left: auto; }

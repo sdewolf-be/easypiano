@@ -1,7 +1,7 @@
 // Service worker de la version junior : mise en cache pour un usage hors ligne (réseau d'abord, cache en secours).
-const CACHE = 'easypiano-junior-v2';
+const CACHE = 'easypiano-junior-v3';
 const ASSETS = ['./', 'index.html', 'css/junior.css', 'manifest.webmanifest',
-  'js/app.js', 'js/activities.js', 'js/course.js', 'js/songs.js', 'js/notes.js', 'js/mascot.js', 'js/kidkeyboard.js', 'js/fx.js',
+  'js/app.js', 'js/activities.js', 'js/course.js', 'js/songs.js', 'js/notes.js', 'js/mascot.js', 'js/kidkeyboard.js', 'js/fx.js', 'js/recorder.js',
   '../js/music.js', '../js/synth.js', '../js/midi.js',
   'icons/icon-192.png', 'icons/icon-512.png', 'icons/apple-touch-icon.png'];
 self.addEventListener('install', (e) => {
