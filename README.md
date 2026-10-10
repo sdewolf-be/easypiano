@@ -9,7 +9,15 @@ installables comme une appli (PWA) sur l'écran d'accueil de l'iPad.
 
 ## Fonctions
 
-- **Cours** : 8 leçons progressives (trouver le Do, Do‑Ré‑Mi, Fa‑Sol, rythme, main gauche, deux mains, accords, altérations), chacune avec une explication et un exercice.
+- **Cours** : un cursus complet en **14 chapitres / 83 leçons / 208 exercices** qui suit le livre
+  *Alfred's Basic Adult All‑in‑One Course, Level 1* (pages indiquées dans chaque leçon). Pour chaque leçon :
+  un récapitulatif de la théorie en français (notes Do, Ré, Mi…, schémas de clavier, mini‑partitions, tableaux),
+  puis les exercices à jouer : toutes les pièces du livre (traditionnelles arrangées fidèlement, compositions
+  pédagogiques équivalentes pour les pièces propres au livre, pièces du domaine public à la place des chansons
+  protégées de la fin du livre) et des **quiz au piano** qui remplacent les exercices « à écrire dans le livre »
+  (jouer une note, un intervalle, un accord, une gamme, fort / doux…).
+  La progression (leçons terminées, étoiles par exercice) est visible dans la liste des chapitres ; le bouton
+  **Continuer** reprend au premier exercice non fait, et on peut ouvrir directement n'importe quelle leçon.
 - **Morceaux** : 9 morceaux de niveau débutant (Au clair de la lune, Ah ! vous dirai‑je maman, Frère Jacques, Ode à la joie, Vive le vent, Joyeux anniversaire, Greensleeves, Lettre à Élise, To Zanarkand en version facile), avec niveau, meilleur score et étoiles.
 - **Trois modes de jeu** :
   - *Apprendre* : la partition s'arrête sur chaque note et attend que tu la joues (les accords exigent toutes les notes).
@@ -58,6 +66,9 @@ C4/4   noire Do4        E4/2   blanche Mi4       G4/1  ronde Sol4
 D4/8   croche Ré4       C4/4.  noire pointée      R/4   soupir
 [C3 E3 G3]/2  accord    C4/4~  liée à la note suivante   |  barre de mesure (facultative)
 Bb3, F#4, Fn4           bémol, dièse, bécarre     la durée omise reprend la précédente
+C4/4:1  [C3 E3 G3]/2:5,3,1   doigtés (dans l'ordre des hauteurs écrites)
+C4/8t   triolet de croches   C4/4^ point d'orgue   C4/4' staccato   C4/4> accent
+@mf @Fine @D.C._al_Fine      annotation attachée à la note suivante (_ = espace)
 ```
 
 Chaque morceau a un `id`, un `title`, un `tempo`, un `timeSig` (ex. `[3, 4]`), une tonalité `key` (`C`, `G`, `F`, `Am`…),
@@ -75,7 +86,10 @@ une voix `right` (main droite, clé de Sol) et une voix `left` (main gauche, cl�
 | `js/midi.js` | Entrée Web MIDI (Bluetooth / USB) |
 | `js/keyboard.js` | Clavier à l'écran |
 | `js/synth.js` | Synthétiseur Web Audio (accompagnement, métronome) |
-| `js/songs.js`, `js/lessons.js` | Contenu |
+| `js/songs.js` | Morceaux du menu « Morceaux » |
+| `js/course/*.js` | Cursus : un fichier par chapitre (`c01`…`c14`), `index.js` les assemble |
+| `js/diagrams.js` | Schémas de théorie (clavier SVG, mini‑partitions, tableaux) |
+| `js/quiz.js` | Moteur des quiz joués au piano |
 | `sw.js`, `manifest.webmanifest` | Mode hors ligne et installation PWA |
 
 La police **Bravura** (Steinberg) est distribuée sous licence SIL OFL.

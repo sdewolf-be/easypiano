@@ -33,6 +33,23 @@
       <section id="tab-reglages" class="tab-panel" hidden></section>
     </main>
 
+    <!-- Leçon : théorie + liste d'exercices -->
+    <main id="screen-lesson" class="screen" hidden>
+      <header class="topbar player-bar">
+        <button class="btn icon" id="btn-lesson-back" title="Retour">‹</button>
+        <div class="song-title"><span id="lesson-title">Leçon</span><small id="lesson-sub"></small></div>
+        <div class="lesson-nav">
+          <button class="btn" id="btn-lesson-prev">‹ Leçon précédente</button>
+          <button class="btn" id="btn-lesson-next">Leçon suivante ›</button>
+        </div>
+      </header>
+      <section class="lesson-body">
+        <article class="theory" id="lesson-theory"></article>
+        <h2 class="ex-title">Exercices</h2>
+        <ol class="ex-list" id="lesson-exercises"></ol>
+      </section>
+    </main>
+
     <!-- Lecteur / Jeu -->
     <main id="screen-player" class="screen" hidden>
       <header class="topbar player-bar">
@@ -59,6 +76,11 @@
       </header>
       <section class="score-area">
         <div id="score"></div>
+        <div id="quiz-panel" class="quiz-panel" hidden>
+          <div class="quiz-progress" id="quiz-progress"></div>
+          <div class="quiz-prompt" id="quiz-prompt"></div>
+          <div class="quiz-feedback" id="quiz-feedback"></div>
+        </div>
         <div id="status-strip" class="status-strip"></div>
         <div id="countin" class="countin" hidden></div>
         <div id="overlay-start" class="overlay">

@@ -1,24 +1,26 @@
 // Application : écrans, réglages, gestion des entrées (MIDI Bluetooth/USB ou clavier à l’écran).
-import { parseSong, midiToNameFr } from './music.js';
+import { parseSong, parsePitch, midiToNameFr } from './music.js';
 import { SONGS } from './songs.js';
-import { LESSONS } from './lessons.js';
+import { COURSE, LESSON_LIST, findLesson, lessonProgress, chapterProgress, nextExercise, followingExercise } from './course/index.js';
 import { ScoreRenderer } from './renderer.js';
+import { renderMiniScores } from './diagrams.js';
 import { Synth } from './synth.js';
 import { MidiInput } from './midi.js';
 import { PianoKeyboard } from './keyboard.js';
 import { Player } from './player.js';
+import { Quiz } from './quiz.js';
 
 const STORE_KEY = 'easypiano.v1';
 const $ = (sel) => document.querySelector(sel);
 
 const defaults = {
   settings: { input: 'midi', midiDevice: 'all', midiSound: false, volume: 0.6, showNames: true, metronome: true, tempoFactor: 1 },
-  lessons: {},
+  course: {},   // course[lessonId][exerciseIndex] = { done, stars, accuracy }
   songs: {},
 };
 let store = load();
 function load() {
-  try { const s = JSON.parse(localStorage.getItem(STORE_KEY)); if (s) return { ...defaults, ...s, settings: { ...defaults.settings, ...(s.settings || {}) } }; } catch (e) { /* ignore */ }
+  try { const s = JSON.parse(localStorage.getItem(STORE_KEY)); if (s) return { ...defaults, ...s, settings: { ...defaults.settings, ...(s.settings || {}) }, course: s.course || {} }; } catch (e) { /* ignore */ }
   return JSON.parse(JSON.stringify(defaults));
 }
 function save() { try { localStorage.setItem(STORE_KEY, JSON.stringify(store)); } catch (e) { /* ignore */ } }
@@ -28,6 +30,8 @@ const settings = store.settings;
 const synth = new Synth();
 synth.setVolume(settings.volume);
 let player = null;
+let quiz = null;
+let inputTarget = 'player'; // 'player' | 'quiz'
 let activeInput = 'screen';
 
 function handleNote(e) {
@@ -35,10 +39,12 @@ function handleNote(e) {
   if (e.type === 'on') {
     if (sound) synth.noteOn(e.midi, e.velocity || 0.8);
     const det = $('#midi-detected'); if (det && e.source === 'midi') det.textContent = midiToNameFr(e.midi) + (Math.floor(e.midi / 12) - 1);
-    if (player) player.noteOn(e.midi, e.source);
+    if (inputTarget === 'quiz' && quiz) quiz.noteOn(e.midi, e.velocity ?? 0.8);
+    else if (player) player.noteOn(e.midi, e.source);
   } else {
     if (sound) synth.noteOff(e.midi);
-    if (player) player.noteOff(e.midi);
+    if (inputTarget === 'quiz' && quiz) quiz.noteOff(e.midi);
+    else if (player) player.noteOff(e.midi);
   }
 }
 const midi = new MidiInput(handleNote);
@@ -83,6 +89,7 @@ function updateInputStatus(label) {
 // ---------- Navigation ----------
 function showScreen(id) {
   for (const s of document.querySelectorAll('.screen')) s.hidden = s.id !== id;
+  window.scrollTo(0, 0);
 }
 $('#home-tabs').addEventListener('click', (e) => {
   const b = e.target.closest('.tab'); if (!b) return;
@@ -92,32 +99,88 @@ $('#home-tabs').addEventListener('click', (e) => {
 });
 
 // ---------- Accueil : cours ----------
-function renderLessons() {
+function exerciseLabel(ex) { return ex.type === 'quiz' ? 'Quiz' : ex.hands === 'RL' ? 'Deux mains' : ex.hands === 'L' ? 'Main gauche' : 'Main droite'; }
+
+function renderCourse() {
   const root = $('#tab-cours');
   root.innerHTML = '';
-  const intro = document.createElement('div');
-  intro.className = 'intro';
-  const done = LESSONS.filter(l => store.lessons[l.id]).length;
-  intro.innerHTML = `<h2>Bienvenue !</h2>Suis les leçons dans l’ordre, puis entraîne-toi sur les morceaux.
-    En mode <b>Apprendre</b>, la partition attend que tu joues la bonne note ; en mode <b>Jouer</b>, elle défile en rythme.
-    <br><span class="muted">${done} / ${LESSONS.length} leçons terminées</span>`;
-  root.appendChild(intro);
-  let module = null;
-  let grid = null;
-  LESSONS.forEach((l, i) => {
-    if (l.module !== module) {
-      module = l.module;
-      const h = document.createElement('div'); h.className = 'module-title'; h.textContent = module; root.appendChild(h);
-      grid = document.createElement('div'); grid.className = 'grid'; root.appendChild(grid);
+  const lessonsDone = LESSON_LIST.filter(l => lessonProgress(l, store.course).complete).length;
+  const exTotal = LESSON_LIST.reduce((a, l) => a + l.exercises.length, 0);
+  const exDone = LESSON_LIST.reduce((a, l) => a + lessonProgress(l, store.course).done, 0);
+  const next = nextExercise(store.course);
+  const cont = document.createElement('div');
+  cont.className = 'intro continue';
+  cont.innerHTML = `<h2>Cours de piano – niveau 1</h2>
+    <p>Un cursus complet en 14 chapitres qui suit le livre <i>Alfred’s Basic Adult All‑in‑One Course, Level 1</i> : pour chaque leçon, l’essentiel de la théorie en français (Do, Ré, Mi…), puis les exercices et morceaux à jouer sur ton piano.</p>
+    <div class="progress-bar"><div style="width:${exTotal ? Math.round(100 * exDone / exTotal) : 0}%"></div></div>
+    <p class="muted">${lessonsDone} / ${LESSON_LIST.length} leçons terminées · ${exDone} / ${exTotal} exercices</p>
+    ${next ? `<div class="row left"><button class="btn primary big" id="btn-continue">▶ Continuer : ${next.lesson.title} – ${next.exercise.title}</button></div>` : '<p><b>Bravo, tout le cursus est terminé !</b></p>'}`;
+  root.appendChild(cont);
+  const btn = cont.querySelector('#btn-continue');
+  if (btn) btn.addEventListener('click', () => openExercise(next.lesson, next.index));
+
+  for (const ch of COURSE) {
+    const cp = chapterProgress(ch, store.course);
+    const head = document.createElement('div');
+    head.className = 'chapter-head' + (cp.complete ? ' done' : '');
+    head.innerHTML = `<div class="chapter-num">${ch.index + 1}</div><div class="chapter-info"><h3>${ch.title}</h3><p>${ch.intro}</p></div>
+      <div class="chapter-meta"><span class="muted">Livre p. ${ch.pages}</span><span class="${cp.complete ? 'ok' : 'muted'}">${cp.done} / ${cp.total} leçons</span></div>`;
+    root.appendChild(head);
+    const grid = document.createElement('div');
+    grid.className = 'grid';
+    for (const l of ch.lessons) {
+      const lp = lessonProgress(l, store.course);
+      const c = document.createElement('div');
+      c.className = 'card-item' + (lp.complete ? ' done' : lp.done ? ' started' : '');
+      const status = lp.complete ? '✓ Terminée' : lp.done ? `En cours · ${lp.done}/${lp.total}` : 'À faire';
+      c.innerHTML = `<h3><span class="lesson-num">${l.number}</span>${l.title}</h3><p>${l.exercises.length} exercice${l.exercises.length > 1 ? 's' : ''} · p. ${l.pages}</p>
+        <div class="meta"><span class="${lp.complete ? 'ok' : 'muted'}">${status}</span><span class="level">Leçon</span></div>`;
+      c.addEventListener('click', () => openLessonScreen(l));
+      grid.appendChild(c);
     }
-    const c = document.createElement('div');
-    c.className = 'card-item' + (store.lessons[l.id] ? ' done' : '');
-    c.innerHTML = `<h3><span class="lesson-num">${i + 1}</span>${l.title}</h3><p>${l.hands === 'R' ? 'Main droite' : l.hands === 'L' ? 'Main gauche' : 'Deux mains'}</p>
-      <div class="meta"><span class="muted">${store.lessons[l.id] ? '✓ Terminée' : 'À faire'}</span><span class="level">Leçon</span></div>`;
-    c.addEventListener('click', () => openLesson(i));
-    grid.appendChild(c);
+    root.appendChild(grid);
+  }
+}
+
+// ---------- Écran leçon ----------
+let currentLesson = null;
+let theoryRenderer = null;
+
+async function openLessonScreen(lesson) {
+  currentLesson = lesson;
+  showScreen('screen-lesson');
+  $('#lesson-title').textContent = `${lesson.number}. ${lesson.title}`;
+  $('#lesson-sub').textContent = `Chapitre ${lesson.chapter.index + 1} : ${lesson.chapter.title} · livre p. ${lesson.pages}`;
+  $('#btn-lesson-prev').disabled = lesson.number <= 1;
+  $('#btn-lesson-next').disabled = lesson.number >= LESSON_LIST.length;
+  const theory = $('#lesson-theory');
+  theory.innerHTML = lesson.theory;
+  renderExerciseList();
+  await fontReady();
+  renderMiniScores(theory, ScoreRenderer);
+}
+
+function renderExerciseList() {
+  const lesson = currentLesson;
+  const list = $('#lesson-exercises');
+  list.innerHTML = '';
+  const p = store.course[lesson.id] || {};
+  lesson.exercises.forEach((ex, i) => {
+    const r = p[i];
+    const li = document.createElement('li');
+    li.className = 'ex-item' + (r && r.done ? ' done' : '');
+    const stars = r && r.done && r.stars ? '★'.repeat(r.stars) + '☆'.repeat(3 - r.stars) : '';
+    li.innerHTML = `<div class="ex-main"><div class="ex-name">${ex.title}</div><div class="ex-sub">${exerciseLabel(ex)}${ex.type === 'play' && ex.song.composer ? ' · ' + ex.song.composer : ''}${ex.type === 'quiz' ? ' · ' + ex.questions.length + ' questions' : ''}</div></div>
+      <div class="ex-status">${r && r.done ? '<span class="ok">✓</span> <span class="stars-small">' + stars + '</span>' : '<span class="muted">À faire</span>'}</div>
+      <button class="btn primary">${ex.type === 'quiz' ? 'Répondre' : 'Jouer'}</button>`;
+    li.querySelector('button').addEventListener('click', () => openExercise(lesson, i));
+    list.appendChild(li);
   });
 }
+
+$('#btn-lesson-back').addEventListener('click', () => { showScreen('screen-home'); renderCourse(); });
+$('#btn-lesson-prev').addEventListener('click', () => { const l = LESSON_LIST[currentLesson.number - 2]; if (l) openLessonScreen(l); });
+$('#btn-lesson-next').addEventListener('click', () => { const l = LESSON_LIST[currentLesson.number]; if (l) openLessonScreen(l); });
 
 // ---------- Accueil : morceaux ----------
 function renderSongs() {
@@ -203,7 +266,7 @@ function renderSettings() {
   root.querySelector('#show-names').addEventListener('change', (e) => { settings.showNames = e.target.checked; save(); });
   root.querySelector('#metronome').addEventListener('change', (e) => { settings.metronome = e.target.checked; save(); });
   root.querySelector('#btn-reset').addEventListener('click', () => {
-    if (confirm('Effacer toute la progression ?')) { store.lessons = {}; store.songs = {}; save(); renderLessons(); renderSongs(); }
+    if (confirm('Effacer toute la progression ?')) { store.course = {}; store.songs = {}; save(); renderCourse(); renderSongs(); }
   });
 }
 
@@ -211,47 +274,93 @@ function renderSettings() {
 const scoreEl = $('#score');
 const renderer = new ScoreRenderer(scoreEl);
 const keyboard = new PianoKeyboard($('#keyboard'), handleNote, { showNames: true });
-let current = null; // { kind: 'song'|'lesson', index, song, hands }
-let hintTimer = null;
+let current = null; // { kind: 'song'|'exercise', ... }
 
 player = new Player({ renderer, keyboard, synth, onState: onPlayerState });
 player.metronome = settings.metronome;
+quiz = new Quiz({ keyboard, synth, onState: onQuizState });
 
 function fontReady() {
   if (!document.fonts) return Promise.resolve();
   return document.fonts.load('48px Bravura').catch(() => {}).then(() => document.fonts.ready);
 }
 
+function stavesFor(song) { return song.hasR && song.hasL ? 'RL' : song.hasL ? 'L' : 'R'; }
+
+function setQuizMode(on) {
+  $('#screen-player').classList.toggle('quiz-mode', on);
+  $('#quiz-panel').hidden = !on;
+  $('#score').hidden = on;
+  inputTarget = on ? 'quiz' : 'player';
+}
+
 async function openPlayer(item) {
   current = item;
+  player.stop(); quiz.stop();
+  setQuizMode(false);
   showScreen('screen-player');
-  $('#player-title').textContent = item.song.title;
-  $('#player-sub').textContent = item.kind === 'lesson' ? 'Leçon ' + (item.index + 1) : `${item.song.composer} · niveau ${item.song.level}`;
-  $('#start-title').textContent = item.kind === 'lesson' ? item.lesson.title : item.song.title;
-  $('#lesson-text').innerHTML = item.kind === 'lesson' ? item.lesson.text : (item.song.hint ? `<p>${item.song.hint}</p>` : '');
+  $('#player-title').textContent = item.kind === 'exercise' ? item.exercise.title : item.song.title;
+  $('#player-sub').textContent = item.kind === 'exercise' ? `${item.lesson.number}. ${item.lesson.title}` : `${item.song.composer} · niveau ${item.song.level}`;
+  $('#start-title').textContent = item.kind === 'exercise' ? item.exercise.title : item.song.title;
+  const text = item.kind === 'exercise' ? (item.exercise.text ? `<p>${item.exercise.text}</p>` : '') : (item.song.hint ? `<p>${item.song.hint}</p>` : '');
+  $('#lesson-text').innerHTML = text + (item.kind === 'exercise' && item.song.composer ? `<p class="muted">${item.song.title} · ${item.song.composer}${item.song.tempoText ? ' · ' + item.song.tempoText : ''}</p>` : '');
   $('#start-input').textContent = 'Préparation de l’entrée…';
   $('#overlay-start').hidden = false;
   $('#overlay-result').hidden = true;
   $('#btn-hint').hidden = !item.song.hint;
-  player.mode = 'learn';
+  player.mode = item.kind === 'exercise' ? (item.exercise.mode || 'learn') : 'learn';
   player.hands = item.hands;
   player.tempoFactor = settings.tempoFactor;
   syncControls();
   keyboard.fitToSong(item.song);
   await fontReady();
-  renderer.render(item.song, { hands: player.hands, showNames: settings.showNames });
-  player.load(item.song, { hands: item.hands, mode: 'learn' });
+  renderer.render(item.song, { hands: player.hands, showNames: showNamesFor(item), staves: stavesFor(item.song) });
+  player.load(item.song, { hands: item.hands, mode: player.mode });
   // Les entrées sont activées lors du clic sur « Commencer » (geste utilisateur requis).
   $('#start-input').textContent = settings.input === 'screen' ? 'Entrée : clavier à l’écran' : 'Appuie sur Commencer pour connecter le piano MIDI.';
+}
+
+function showNamesFor(item) {
+  if (item && item.kind === 'exercise' && item.exercise.showNames !== undefined) return item.exercise.showNames && settings.showNames;
+  return settings.showNames;
 }
 
 function openSong(i) {
   const def = SONGS[i];
   openPlayer({ kind: 'song', index: i, song: parseSong(def), hands: 'RL' });
 }
-function openLesson(i) {
-  const l = LESSONS[i];
-  openPlayer({ kind: 'lesson', index: i, lesson: l, song: parseSong(l.song), hands: l.hands });
+
+function openExercise(lesson, index) {
+  const ex = lesson.exercises[index];
+  if (!ex) return;
+  if (ex.type === 'quiz') return openQuiz(lesson, index);
+  openPlayer({ kind: 'exercise', lesson, index, exercise: ex, song: parseSong(ex.song), hands: ex.hands });
+}
+
+async function openQuiz(lesson, index) {
+  const ex = lesson.exercises[index];
+  current = { kind: 'exercise', lesson, index, exercise: ex, song: null, hands: 'RL' };
+  player.stop();
+  showScreen('screen-player');
+  setQuizMode(true);
+  $('#player-title').textContent = ex.title;
+  $('#player-sub').textContent = `${lesson.number}. ${lesson.title}`;
+  $('#start-title').textContent = ex.title;
+  $('#lesson-text').innerHTML = `<p>${ex.text || 'Réponds à chaque question en jouant sur le piano. Les touches attendues s’allument en bleu quand la réponse est précise.'}</p><p class="muted">${ex.questions.length} questions</p>`;
+  $('#overlay-start').hidden = false;
+  $('#overlay-result').hidden = true;
+  $('#btn-hint').hidden = true;
+  // Étendue du clavier : autour des réponses précises
+  const midis = [];
+  for (const q of ex.questions) for (const it of q.answer) for (const s of (Array.isArray(it) ? it : [it])) if (typeof s === 'string' && /\d$/.test(s)) midis.push(parsePitch(s).midi);
+  keyboard.setRange(midis.length ? Math.min(...midis) - 2 : 48, midis.length ? Math.max(...midis) + 2 : 72);
+  quiz.load(ex.questions);
+  $('#quiz-progress').textContent = '';
+  $('#quiz-prompt').innerHTML = '';
+  $('#quiz-feedback').textContent = '';
+  $('#status-strip').textContent = 'Quiz : joue ta réponse sur le piano.';
+  $('#live-info').innerHTML = '';
+  $('#start-input').textContent = settings.input === 'screen' ? 'Entrée : clavier à l’écran' : 'Appuie sur Commencer pour connecter le piano MIDI.';
 }
 
 function syncControls() {
@@ -269,7 +378,7 @@ function syncControls() {
 }
 
 function rerender() {
-  renderer.render(current.song, { hands: player.hands, showNames: settings.showNames });
+  renderer.render(current.song, { hands: player.hands, showNames: showNamesFor(current), staves: stavesFor(current.song) });
   player.reset();
   syncControls();
 }
@@ -301,6 +410,32 @@ function onPlayerState(s) {
   }
 }
 
+function onQuizState(s) {
+  const fb = $('#quiz-feedback');
+  switch (s.type) {
+    case 'question':
+      $('#quiz-progress').innerHTML = `Question <b>${s.index + 1}</b> / ${s.total}` + ' <span class="dots">' + Array.from({ length: s.total }, (_, i) => `<i class="${i < s.index ? 'done' : i === s.index ? 'cur' : ''}"></i>`).join('') + '</span>';
+      $('#quiz-prompt').innerHTML = s.question.prompt + (s.question.display ? `<div class="quiz-display">${s.question.display}</div>` : '');
+      fb.textContent = s.question.mode === 'chord' ? 'Joue toutes les notes ensemble.' : s.question.answer.length > 1 ? `Joue les ${s.question.answer.length} notes l’une après l’autre.` : '';
+      fb.className = 'quiz-feedback';
+      break;
+    case 'correct':
+      fb.textContent = s.step && s.total && s.step < s.total ? `✓ ${s.step} / ${s.total}` : '✓ Juste !';
+      fb.className = 'quiz-feedback good';
+      break;
+    case 'wrong':
+      fb.textContent = s.hint ? '✗ ' + s.hint : '✗ Ce n’est pas ça : ' + midiToNameFr(s.midi) + '. Essaie encore.';
+      fb.className = 'quiz-feedback bad';
+      break;
+    case 'pause':
+      break;
+    case 'finished':
+      showResult(s);
+      break;
+  }
+  $('#live-info').innerHTML = quiz.stats ? `<b class="ok">${quiz.stats.correct}</b> justes · <b class="bad">${quiz.stats.wrong}</b> erreurs` : '';
+}
+
 function showResult(s) {
   const ov = $('#overlay-result');
   ov.hidden = false;
@@ -309,32 +444,48 @@ function showResult(s) {
   const pct = Math.round(s.accuracy * 100);
   let title, text;
   if (s.mode === 'demo') { title = 'Fin de l’écoute'; text = 'À toi de jouer !'; $('#result-stars').innerHTML = ''; }
+  else if (s.mode === 'quiz') { title = s.stats.wrong === 0 ? 'Sans faute !' : 'Quiz terminé'; text = `${s.stats.correct} bonne${s.stats.correct > 1 ? 's' : ''} réponse${s.stats.correct > 1 ? 's' : ''}, ${s.stats.wrong} erreur${s.stats.wrong > 1 ? 's' : ''}.`; }
   else if (s.mode === 'learn') { title = 'Bravo, terminé !'; text = `${s.stats.total} notes jouées, ${s.stats.wrong} fausse${s.stats.wrong > 1 ? 's' : ''} note${s.stats.wrong > 1 ? 's' : ''} en chemin.`; }
   else { title = stars === 3 ? 'Excellent !' : stars === 2 ? 'Bien joué !' : stars === 1 ? 'Pas mal, continue !' : 'Courage, on recommence ?'; text = `${pct} % de notes justes (${s.stats.hits}/${s.stats.total}), ${s.stats.misses} ratées, ${s.stats.wrong} fausses notes.`; }
   $('#result-title').textContent = title;
   $('#result-text').textContent = text;
   // Progression
-  if (current.kind === 'lesson' && s.mode !== 'demo' && (s.mode === 'learn' || s.accuracy >= 0.7)) { store.lessons[current.lesson.id] = true; save(); renderLessons(); }
+  if (current.kind === 'exercise' && s.mode !== 'demo' && (s.mode === 'learn' || s.mode === 'quiz' || s.accuracy >= 0.7)) {
+    const p = store.course[current.lesson.id] || (store.course[current.lesson.id] = {});
+    const prev = p[current.index];
+    const starsNow = s.mode === 'learn' ? (s.stats.wrong === 0 ? 3 : s.stats.wrong <= Math.max(2, s.stats.total * 0.15) ? 2 : 1) : stars;
+    if (!prev || !prev.done || starsNow > (prev.stars || 0)) p[current.index] = { done: true, stars: starsNow, accuracy: s.accuracy, mode: s.mode };
+    save();
+  }
   if (current.kind === 'song' && s.mode === 'play' && player.hands === 'RL') {
     const best = store.songs[current.song.id];
     if (!best || s.accuracy > best.accuracy) { store.songs[current.song.id] = { accuracy: s.accuracy, stars }; save(); renderSongs(); }
   }
-  const hasNext = current.kind === 'lesson' ? current.index + 1 < LESSONS.length : current.index + 1 < SONGS.length;
+  const hasNext = current.kind === 'exercise' ? !!followingExercise(current.lesson, current.index) : current.index + 1 < SONGS.length;
   $('#btn-result-next').hidden = !hasNext;
+  $('#btn-result-back').textContent = current.kind === 'exercise' ? '‹ Leçon' : 'Retour';
+}
+
+function leavePlayer() {
+  player.stop(); quiz.stop();
+  $('#overlay-result').hidden = true;
+  if (current && current.kind === 'exercise') { openLessonScreen(current.lesson); }
+  else { showScreen('screen-home'); }
+  setQuizMode(false);
 }
 
 // Contrôles du lecteur
-$('#btn-back').addEventListener('click', () => { player.stop(); showScreen('screen-home'); });
+$('#btn-back').addEventListener('click', leavePlayer);
 $('#btn-start').addEventListener('click', async () => {
   $('#start-input').textContent = 'Activation…';
   const label = await activateInputs();
   $('#start-input').textContent = 'Entrée : ' + label;
   $('#overlay-start').hidden = true;
-  player.reset();
-  player.start();
+  if (inputTarget === 'quiz') { quiz.reset(); quiz.start(); }
+  else { player.reset(); player.start(); }
 });
 $('#btn-playpause').addEventListener('click', () => { synth.ensure(); if (player.finished) player.reset(); player.toggle(); });
-$('#btn-restart').addEventListener('click', () => { player.reset(); $('#overlay-result').hidden = true; });
+$('#btn-restart').addEventListener('click', () => { $('#overlay-result').hidden = true; if (inputTarget === 'quiz') { quiz.reset(); quiz.start(); } else player.reset(); });
 $('#seg-mode').addEventListener('click', (e) => {
   const b = e.target.closest('button'); if (!b) return;
   player.setMode(b.dataset.mode); $('#overlay-result').hidden = true; syncControls();
@@ -356,23 +507,24 @@ $('#btn-metro').addEventListener('click', () => { player.metronome = !player.met
 $('#btn-names').addEventListener('click', () => { settings.showNames = !settings.showNames; save(); rerender(); });
 $('#btn-hint').addEventListener('click', () => { $('#hint-text').textContent = current.song.hint; $('#overlay-hint').hidden = false; });
 $('#btn-hint-close').addEventListener('click', () => { $('#overlay-hint').hidden = true; });
-$('#btn-result-back').addEventListener('click', () => { $('#overlay-result').hidden = true; player.stop(); showScreen('screen-home'); });
-$('#btn-result-replay').addEventListener('click', () => { $('#overlay-result').hidden = true; player.reset(); player.start(); });
+$('#btn-result-back').addEventListener('click', leavePlayer);
+$('#btn-result-replay').addEventListener('click', () => { $('#overlay-result').hidden = true; if (inputTarget === 'quiz') { quiz.reset(); quiz.start(); } else { player.reset(); player.start(); } });
 $('#btn-result-next').addEventListener('click', () => {
   $('#overlay-result').hidden = true;
-  if (current.kind === 'lesson') openLesson(current.index + 1); else openSong(current.index + 1);
+  if (current.kind === 'exercise') { const n = followingExercise(current.lesson, current.index); if (n) openExercise(n.lesson, n.index); }
+  else openSong(current.index + 1);
 });
 let resizeTimer = null;
-window.addEventListener('resize', () => { clearTimeout(resizeTimer); resizeTimer = setTimeout(() => renderer.resize(), 150); });
+window.addEventListener('resize', () => { clearTimeout(resizeTimer); resizeTimer = setTimeout(() => { if (!$('#screen-player').hidden && inputTarget === 'player') renderer.resize(); }, 150); });
 
 // Clavier d'ordinateur (pour tester sans piano) : touches a w s e d f t g y h u j k
 const KEYMAP = { a: 60, w: 61, s: 62, e: 63, d: 64, f: 65, t: 66, g: 67, y: 68, h: 69, u: 70, j: 71, k: 72, o: 73, l: 74, p: 75, m: 76 };
 const heldKeys = new Set();
 window.addEventListener('keydown', (e) => {
   if (e.repeat || e.target.tagName === 'INPUT') return;
-  if (e.key === ' ') { e.preventDefault(); if (!$('#screen-player').hidden && $('#overlay-start').hidden) player.toggle(); return; }
+  if (e.key === ' ') { e.preventDefault(); if (!$('#screen-player').hidden && $('#overlay-start').hidden && inputTarget === 'player') player.toggle(); return; }
   const m = KEYMAP[e.key.toLowerCase()];
-  if (m && !heldKeys.has(m)) { heldKeys.add(m); handleNote({ type: 'on', midi: m, velocity: 0.8, source: 'screen' }); }
+  if (m && !heldKeys.has(m)) { heldKeys.add(m); handleNote({ type: 'on', midi: m, velocity: e.shiftKey ? 0.3 : 0.8, source: 'screen' }); }
 });
 window.addEventListener('keyup', (e) => {
   const m = KEYMAP[e.key.toLowerCase()];
@@ -380,7 +532,7 @@ window.addEventListener('keyup', (e) => {
 });
 
 // ---------- Démarrage ----------
-renderLessons();
+renderCourse();
 renderSongs();
 renderSettings();
 updateInputStatus();
@@ -399,5 +551,6 @@ if ('serviceWorker' in navigator && location.protocol === 'https:') {
 }
 
 // Accès pour les tests automatisés
-window.EasyPiano = { player, renderer, keyboard, synth, midi, openSong, openLesson, SONGS, LESSONS, parseSong,
-  simulate(midi, on = true) { handleNote({ type: on ? 'on' : 'off', midi, velocity: 0.8, source: 'test' }); } };
+window.EasyPiano = { player, quiz, renderer, keyboard, synth, midi, openSong, openExercise, openLessonScreen, findLesson, COURSE, LESSON_LIST, SONGS, parseSong,
+  get store() { return store; },
+  simulate(midi, on = true, velocity = 0.8) { handleNote({ type: on ? 'on' : 'off', midi, velocity, source: 'test' }); } };
