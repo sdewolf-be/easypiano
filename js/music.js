@@ -73,7 +73,8 @@ let eventCounter = 0;
 
 export function parseVoice(text, hand, timeSig) {
   const events = [];
-  const tokens = text.replace(/\n/g, ' ').split(/\s+/).filter(Boolean);
+  // Les accords [C3 E3 G3]/2 contiennent des espaces : on les garde entiers.
+  const tokens = text.replace(/\n/g, ' ').match(/\[[^\]]*\]\S*|\S+/g) || [];
   const beatsPerMeasure = timeSig[0] * (4 / timeSig[1]);
   let t = 0;
   let lastDur = 1;

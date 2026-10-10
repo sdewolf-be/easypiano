@@ -10,7 +10,7 @@ installables comme une appli (PWA) sur l'écran d'accueil de l'iPad.
 ## Fonctions
 
 - **Cours** : 8 leçons progressives (trouver le Do, Do‑Ré‑Mi, Fa‑Sol, rythme, main gauche, deux mains, accords, altérations), chacune avec une explication et un exercice.
-- **Morceaux** : 8 morceaux de niveau débutant (Au clair de la lune, Ah ! vous dirai‑je maman, Frère Jacques, Ode à la joie, Vive le vent, Joyeux anniversaire, Greensleeves, Lettre à Élise), avec niveau, meilleur score et étoiles.
+- **Morceaux** : 9 morceaux de niveau débutant (Au clair de la lune, Ah ! vous dirai‑je maman, Frère Jacques, Ode à la joie, Vive le vent, Joyeux anniversaire, Greensleeves, Lettre à Élise, To Zanarkand en version facile), avec niveau, meilleur score et étoiles.
 - **Trois modes de jeu** :
   - *Apprendre* : la partition s'arrête sur chaque note et attend que tu la joues (les accords exigent toutes les notes).
   - *Jouer* : décompte d'une mesure, puis la partition défile en rythme ; chaque note est jugée juste, ratée ou fausse ; score et étoiles à la fin.

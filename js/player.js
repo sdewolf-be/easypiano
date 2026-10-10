@@ -115,7 +115,7 @@ export class Player {
 
   _tick(now) {
     if (!this.running) return;
-    const dt = Math.min(0.1, (now - this._lastTime) / 1000);
+    const dt = Math.max(0, Math.min(0.1, (now - this._lastTime) / 1000));
     this._lastTime = now;
     const song = this.song;
     let newPos = this.pos + dt * this.beatsPerSec;

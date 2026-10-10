@@ -147,4 +147,30 @@ export const SONGS = [
       R/4. | R/4. | R/4. | A2/8 E3/8 A3/8 | R/4. | E2/8 E3/8 G#3/8 | R/4. | A2/8 E3/8 A3/8 |
       R/4. | R/4. | R/4. | A2/8 E3/8 A3/8 | R/4. | E2/8 E3/8 G#3/8 | R/4. | A2/8 E3/8 A3/8`,
   },
+  {
+    id: 'to-zanarkand',
+    title: 'To Zanarkand (version facile)',
+    composer: 'N. Uematsu (Final Fantasy X)',
+    level: 3,
+    tempo: 90,
+    timeSig: [3, 4],
+    key: 'Em',
+    hint: 'Mi mineur (Fa♯ à l’armure), valse à 3 temps. L’intro est un arpège en croches : commence à 50 % du tempo. La main gauche joue le même accord brisé (fondamentale, tierce, quinte) à chaque mesure.',
+    right: `
+      E5/8 E4/8 G4/8 B4/8 E5/8 F#5/8 | G5/2. | D5/8 D4/8 F#4/8 A4/8 D5/8 E5/8 | F#5/2. |
+      B4/4 B4/4 B4/4 | B4/4 A4/4. D5/8 | F#4/2.~ | F#4/2. |
+      E5/4 E5/4 E5/4 | E5/4 D5/4. G5/8 | C5/2.~ | C5/2. |
+      E5/4. B4/8 E5/8 F#5/8 | G5/4 F#5/4 E5/4 | D5/4. E5/8 D5/4 | B4/2. |
+      E5/4. B4/8 E5/8 F#5/8 | G5/4 F#5/4 G5/4 | A5/4. G5/8 A5/4 | B5/2. |
+      E5/4. B4/8 E5/8 F#5/8 | G5/4 F#5/4 E5/4 | D5/4. E5/8 D5/4 | B4/2 G4/8 A4/8 |
+      B4/4 B4/4 B4/4 | B4/4 A4/4 D5/4 | G4/4. G4/8 F#4/8 D4/8 | E4/2.`,
+    left: `
+      E3/2. | C3/2. | D3/2. | B2/2. |
+      C3/4 E3/4 G3/4 | E3/4 G3/4 B3/4 | B2/4 D3/4 F#3/4 | B2/4 D3/4 F#3/4 |
+      A2/4 C3/4 E3/4 | A2/4 C3/4 E3/4 | F3/4 A3/4 C4/4 | F3/4 A3/4 C4/4 |
+      E3/4 G3/4 B3/4 | C3/4 E3/4 G3/4 | D3/4 F#3/4 A3/4 | G2/4 B2/4 D3/4 |
+      E3/4 G3/4 B3/4 | C3/4 E3/4 G3/4 | D3/4 F#3/4 A3/4 | G2/4 B2/4 D3/4 |
+      E3/4 G3/4 B3/4 | C3/4 E3/4 G3/4 | D3/4 F#3/4 A3/4 | G2/4 B2/4 D3/4 |
+      C3/4 E3/4 G3/4 | D3/4 F#3/4 A3/4 | A2/4 C3/4 E3/4 | [E3 G3 B3]/2.`,
+  },
 ];

@@ -14,17 +14,16 @@ export class PianoKeyboard {
   }
 
   setRange(low, high) {
-    // Ajuste aux Do / Si pour toujours commencer sur un Do
+    // Le clavier commence et finit toujours sur un Do
     while (low % 12 !== 0) low--;
-    while (high % 12 !== 11) high++;
-    if (high - low < 23) high = low + 23;
+    while (high % 12 !== 0) high++;
+    if (high - low < 24) high = low + 24;
     this.low = low; this.high = high;
     this.render();
   }
 
   fitToSong(song) {
-    const margin = 2;
-    this.setRange(Math.min(song.minMidi - margin, 60 - 12), Math.max(song.maxMidi + margin, 60 + 7));
+    this.setRange(Math.min(song.minMidi - 1, 60 - 12), Math.max(song.maxMidi + 1, 60 + 7));
   }
 
   render() {
