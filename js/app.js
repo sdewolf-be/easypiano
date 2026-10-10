@@ -226,7 +226,7 @@ function renderSettings() {
         <p>Test : joue une note sur le piano, elle s’affiche ici → <span class="detected" id="midi-detected"></span></p>
       ` : '<p>Web MIDI n’est pas disponible dans ce navigateur.</p>'}
       <details class="diag"><summary>Diagnostic MIDI (en cas de problème)</summary><pre id="midi-diag"></pre>
-        <p><button class="btn" id="btn-midi-request">Redemander l’accès MIDI</button> <button class="btn" id="btn-midi-copy">Copier le diagnostic</button></p></details>
+        <p><button class="btn" id="btn-midi-request">Redemander l’accès MIDI</button> <button class="btn" id="btn-midi-copy">Copier le diagnostic</button> <span class="muted" id="midi-copy-status"></span></p></details>
     </div>
     <div class="setting">
       <h3>EasyPiano Junior</h3>
@@ -240,7 +240,8 @@ function renderSettings() {
     </div>
     <div class="setting">
       <h3>Progression</h3>
-      <p><button class="btn" id="btn-reset">Effacer ma progression</button></p>
+      <p><button class="btn" id="btn-reset">Effacer ma progression</button> <button class="btn" id="btn-reset-cancel" hidden>Annuler</button></p>
+      <p class="muted" id="reset-status"></p>
       <p>Astuce : ajoute la page à l’écran d’accueil (menu Partager ▸ « Sur l’écran d’accueil ») pour un affichage plein écran.</p>
     </div>
   </div>`;
@@ -258,9 +259,20 @@ function renderSettings() {
   clearInterval(renderSettings.diagTimer);
   renderSettings.diagTimer = setInterval(() => { if (!root.hidden) refreshDiag(); }, 1000);
   root.querySelector('#btn-midi-request').addEventListener('click', async () => { await setupMidi(true); updateInputStatus(); renderSettings(); });
+  // Pas de boîte de dialogue native : elles sont bloquées dans certains navigateurs iPad (appli installée, MIDIWeb Browser).
   root.querySelector('#btn-midi-copy').addEventListener('click', async () => {
     const txt = diag ? diag.textContent : '';
-    try { await navigator.clipboard.writeText(txt); alert('Diagnostic copié.'); } catch (e) { prompt('Copie ce texte :', txt); }
+    const status = root.querySelector('#midi-copy-status');
+    try {
+      await navigator.clipboard.writeText(txt);
+      status.textContent = 'Diagnostic copié.';
+    } catch (e) {
+      // Secours : on sélectionne le texte pour une copie manuelle.
+      clearInterval(renderSettings.diagTimer);
+      const det = root.querySelector('details.diag'); if (det) det.open = true;
+      try { const r = document.createRange(); r.selectNodeContents(diag); const sel = window.getSelection(); sel.removeAllRanges(); sel.addRange(r); } catch (e2) { /* ignore */ }
+      status.textContent = 'Copie automatique impossible : le texte est sélectionné, utilise « Copier » de l’iPad.';
+    }
   });
   const sel = root.querySelector('#midi-device');
   if (sel) sel.addEventListener('change', () => { settings.midiDevice = sel.value; midi.select(sel.value); save(); });
@@ -269,8 +281,31 @@ function renderSettings() {
   root.querySelector('#volume').addEventListener('input', (e) => { settings.volume = parseFloat(e.target.value); synth.setVolume(settings.volume); save(); });
   root.querySelector('#show-names').addEventListener('change', (e) => { settings.showNames = e.target.checked; save(); });
   root.querySelector('#metronome').addEventListener('change', (e) => { settings.metronome = e.target.checked; save(); });
-  root.querySelector('#btn-reset').addEventListener('click', () => {
-    if (confirm('Effacer toute la progression ?')) { store.course = {}; store.songs = {}; save(); renderCourse(); renderSongs(); }
+  // Remise à zéro en deux clics (même raison : pas de confirm() natif).
+  const resetBtn = root.querySelector('#btn-reset'), resetCancel = root.querySelector('#btn-reset-cancel'), resetStatus = root.querySelector('#reset-status');
+  let resetArmed = false;
+  resetBtn.addEventListener('click', () => {
+    if (!resetArmed) {
+      resetArmed = true;
+      resetBtn.textContent = 'Oui, tout effacer';
+      resetBtn.classList.add('primary');
+      resetCancel.hidden = false;
+      resetStatus.textContent = 'Les leçons terminées, étoiles et meilleurs scores seront effacés (les réglages sont conservés).';
+      return;
+    }
+    store.course = {}; store.songs = {}; save(); renderCourse(); renderSongs();
+    resetArmed = false;
+    resetBtn.textContent = 'Effacer ma progression';
+    resetBtn.classList.remove('primary');
+    resetCancel.hidden = true;
+    resetStatus.textContent = 'Progression effacée.';
+  });
+  resetCancel.addEventListener('click', () => {
+    resetArmed = false;
+    resetBtn.textContent = 'Effacer ma progression';
+    resetBtn.classList.remove('primary');
+    resetCancel.hidden = true;
+    resetStatus.textContent = '';
   });
 }
 
