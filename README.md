@@ -56,15 +56,23 @@ installable comme une seconde appli sur l'écran d'accueil. Elle réutilise le m
 - **Une couleur par note**, la même quelle que soit l'octave (Do rouge, Ré orange, Mi jaune, Fa vert, Sol bleu, La violet, Si rose) :
   le clavier à l'écran porte des « gommettes » de ces couleurs, à reproduire avec des gommettes sur le vrai piano
   (au moins de Do à Do autour du Do du milieu, idéalement aussi Sol, La, Si juste en dessous).
-- **Cursus de 6 chapitres / 31 activités** de 2 à 4 minutes, à raison de 3 activités par jour (≈ 10 minutes, les cœurs de l'accueil) :
-  Do‑Ré‑Mi → Fa‑Sol → La‑Si → la gamme → les notes d'en bas (Sol, La, Si graves) → Joyeux anniversaire.
+- **Cursus de 10 chapitres / 50 activités** de 2 à 4 minutes, à raison de 3 activités par jour (≈ 10 minutes, les cœurs de l'accueil) :
+  Do‑Ré‑Mi → Fa‑Sol → La‑Si → la gamme → les notes d'en bas (Sol, La, Si graves) → Joyeux anniversaire → plus haut, plus bas (oreille) →
+  le rythme → les copains (deux notes en même temps, les deux mains) → chante avec Piou (chapitre « au choix », puis la fête finale).
   Types d'activités : découverte d'une note, « trouve la note » (par le nom ou par la couleur), écho (rejouer une suite de 2‑3 notes),
-  oreille (retrouver une note entendue), mélodie note après note (Mi‑Ré‑Do, Au clair de la lune, Ah ! vous dirai‑je maman,
-  la gamme, Frère Jacques, Joyeux anniversaire) et la fête finale.
-- **Gamification** : étoiles par activité, activités débloquées une à une, gommette par chapitre terminé, séance du jour, confettis.
-- **Piano libre** (Piou dit le nom des notes jouées) et **Mes chansons** (rejouer les chansons débloquées).
+  oreille (retrouver une note entendue parmi 2 puis 3, « plus haut ou plus bas ? »), mélodie note après note, « tape avec Piou »
+  (frapper la pulsation d'une chanson), « joue avec Piou » (la chanson avance toute seule, très tolérante), les copains (accords de deux notes),
+  karaoké (« Piou joue, tu chantes », sans piano) et la fête finale.
+  Chansons : Mi‑Ré‑Do, Au clair de la lune (aussi à deux mains), Ah ! vous dirai‑je maman, la gamme, Frère Jacques, Joyeux anniversaire,
+  la chanson des copains, Dans la ferme de Mathurin, Vive le vent, Ode à la joie.
+- **Gamification** : étoiles par activité, activités débloquées une à une, séance du jour, **défi du jour** (une activité déjà réussie
+  tirée au sort, une étoile bonus), **album de gommettes** (une par chapitre et une par chanson), **Piou à habiller** (un accessoire gagné
+  par chapitre : chapeau de fête, lunettes, nœud papillon, couronne, écharpe, cape, casque, lunettes de soleil, médaille, casquette ;
+  on tape sur Piou à l'accueil), confettis.
+- **Piano libre** (Piou dit le nom des notes jouées) et **Mes chansons** (rejouer ou chanter les chansons débloquées).
 - **Coin des parents** (appui long sur la roue ⚙︎) : choix du piano MIDI, tolérance d'octave (une bonne note dans n'importe quelle
-  octave est acceptée, par défaut), voix, noms des notes, déblocage de tout, remise à zéro.
+  octave est acceptée, par défaut), voix, noms des notes, déblocage de tout, remise à zéro, et **la voix des parents** : enregistrer
+  « Bravo ! », « Oups ! », « À toi ! », « Écoute… » et les noms des notes avec sa propre voix ; Piou les utilise à la place de la synthèse.
 
 Les fichiers sont dans `junior/` (`index.html`, `css/junior.css`, `js/app.js` écrans et entrées, `js/course.js` cursus,
 `js/songs.js` chansons, `js/activities.js` moteurs des jeux, `js/mascot.js` Piou, `js/kidkeyboard.js` clavier coloré, `js/fx.js` confettis et sons).

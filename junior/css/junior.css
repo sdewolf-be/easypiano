@@ -262,3 +262,88 @@ b { font-weight: 800; }
   .nbubble.lg { width: 76px; height: 76px; font-size: 26px; }
   .kkb { min-width: calc(var(--n) * 48px); }
 }
+
+/* ---------- Nouveaux jeux ---------- */
+.nbubble.sm { width: 54px; height: 54px; font-size: 18px; }
+.nchord { position: relative; display: inline-flex; flex-direction: column; gap: 4px; align-items: center; padding: 6px; border-radius: 40px; background: rgba(255, 255, 255, .7); box-shadow: 0 4px 10px rgba(0, 0, 0, .1); transition: transform .2s, opacity .3s; flex: none; }
+.nchord.xl { padding: 12px; gap: 8px; }
+.nchord.xl .nbubble.sm { width: 110px; height: 110px; font-size: 40px; }
+.nchord .nlyric { position: absolute; top: 100%; left: 50%; transform: translateX(-50%); margin-top: 6px; font-size: 14px; font-weight: 800; white-space: nowrap; }
+.nchord.pulse { animation: bpulse .45s ease-out; }
+.nchord.done { opacity: .45; transform: scale(.8); }
+.nchord.current { transform: scale(1.15); box-shadow: 0 0 0 4px #fff, 0 0 0 8px var(--accent); z-index: 1; }
+.nchord.shake { animation: shake .4s; }
+.nbubble.missed { opacity: .35; filter: grayscale(.6); transform: scale(.85); }
+
+.beat .pulse-ring { width: 220px; height: 220px; border-radius: 50%; background: #fff; display: grid; place-items: center; box-shadow: 0 0 0 0 var(--accent); cursor: pointer; user-select: none; touch-action: none; }
+.beat .pulse-ring.beat { animation: ringbeat .45s ease-out; }
+@keyframes ringbeat { 0% { transform: scale(1.18); box-shadow: 0 0 0 0 var(--accent); } 100% { transform: scale(1); box-shadow: 0 0 0 28px transparent; } }
+.beat .pulse-ring.tapped .pulse-core { transform: scale(1.3); }
+.beat .pulse-core { font-size: 90px; line-height: 1; font-weight: 900; color: var(--accent); transition: transform .1s; }
+.beat-dots { display: flex; gap: 10px; justify-content: center; }
+.beat-dots i { width: 20px; height: 20px; border-radius: 50%; background: #fff; box-shadow: inset 0 0 0 3px #e5e7f0; }
+.beat-dots i.on { background: var(--accent); box-shadow: none; transform: scale(1.2); }
+.beat-score { font-size: 22px; min-height: 30px; letter-spacing: 2px; }
+
+.updown .seq.two { gap: 40px; }
+.updown-btns { display: flex; gap: 24px; }
+.kbtn.huge { font-size: 54px; padding: 10px 34px; display: flex; flex-direction: column; align-items: center; gap: 2px; border-radius: 28px; }
+.kbtn.huge small { font-size: 18px; }
+.kbtn.huge.up { background: #e8f3ff; }
+.kbtn.huge.down { background: #fff0e8; }
+
+.sing { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 14px; padding-top: 6px; }
+.sing-now { font-size: 72px; font-weight: 900; color: var(--accent); line-height: 1.1; min-height: 80px; }
+.sing-now.pop { animation: pop .3s; }
+.sing-line { font-size: 28px; font-weight: 800; color: var(--muted); text-align: center; }
+.sing-line span.on { color: var(--text); background: #fff3b0; border-radius: 8px; padding: 0 6px; }
+.phrases.small { gap: 18px; padding: 8px 0 20px; opacity: .8; }
+.phrases.small .phrase { gap: 8px; row-gap: 26px; }
+.phrases.small .nbubble .nlyric { font-size: 12px; }
+#screen-play.no-kb .kb-area { display: none; }
+
+/* ---------- Défi du jour, album, Piou à habiller ---------- */
+.challenge { border: 0; border-radius: 18px; padding: 10px 16px; background: linear-gradient(135deg, #fff3b0, #ffe08a); font-weight: 800; font-size: 16px; box-shadow: var(--shadow); cursor: pointer; display: flex; align-items: center; gap: 10px; }
+.challenge.done { background: linear-gradient(135deg, #d6ffe0, #b6f0cf); }
+.challenge .ch-label { font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: #8a6d00; }
+.challenge.done .ch-label { color: #2a9c42; }
+.home-mascot { cursor: pointer; }
+.album-body { flex: 1; overflow: auto; padding: 18px 24px; display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 14px; align-content: start; }
+.album-title { grid-column: 1 / -1; font-size: 14px; font-weight: 800; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; margin-top: 6px; }
+.album-sticker { background: #fff; border-radius: 22px; padding: 12px 8px; display: flex; flex-direction: column; align-items: center; gap: 6px; box-shadow: var(--shadow); border: 3px dashed #e5e7f0; min-height: 120px; justify-content: center; }
+.album-sticker .big { font-size: 54px; line-height: 1; }
+.album-sticker .lbl { font-size: 12px; font-weight: 800; text-align: center; color: var(--muted); }
+.album-sticker.won { border: 3px solid var(--star); background: linear-gradient(180deg, #fff, #fff8dc); animation: pop .5s; }
+.album-sticker:not(.won) .big { filter: grayscale(1); opacity: .25; }
+.piou-body-screen { flex: 1; display: flex; gap: 24px; padding: 18px 24px; overflow: auto; align-items: flex-start; }
+.mascot.big .mascot-figure { width: 300px; height: 300px; }
+.wardrobe { flex: 1; display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 12px; }
+.wardrobe .slot-title { grid-column: 1 / -1; font-size: 14px; font-weight: 800; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; margin-top: 6px; }
+.witem { border: 3px solid transparent; border-radius: 20px; padding: 12px 8px; background: #fff; display: flex; flex-direction: column; align-items: center; gap: 6px; box-shadow: var(--shadow); cursor: pointer; font-weight: 800; font-size: 13px; }
+.witem .big { font-size: 44px; line-height: 1; }
+.witem.on { border-color: var(--accent); background: #e8f3ff; }
+.witem.locked { opacity: .45; filter: grayscale(.8); }
+.witem.none .big { color: var(--muted); }
+
+/* ---------- Coin des parents : voix enregistrées ---------- */
+.clips { display: grid; gap: 8px; }
+.clip { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; background: #f6f7fb; border-radius: 12px; padding: 8px 10px; }
+.clip .clip-name { flex: 1; min-width: 140px; font-weight: 800; }
+.clip .clip-ex { font-size: 12px; color: var(--muted); width: 100%; }
+.clip.has .clip-name::after { content: ' ✓'; color: #2a9c42; }
+.kbtn.small.rec.on { background: #ffe5e5; color: #c62828; animation: recpulse .8s infinite alternate; }
+@keyframes recpulse { from { box-shadow: var(--shadow); } to { box-shadow: 0 0 0 4px rgba(198, 40, 40, .3); } }
+@media (max-height: 560px) {
+  .beat .pulse-ring { width: 140px; height: 140px; }
+  .beat .pulse-core { font-size: 56px; }
+  .kbtn.huge { font-size: 36px; padding: 6px 24px; }
+  .sing-now { font-size: 44px; min-height: 50px; }
+  .sing-line { font-size: 20px; }
+  .mascot.big .mascot-figure { width: 160px; height: 160px; }
+}
+#songs-list { grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); }
+.song-row { padding: 0; overflow: hidden; align-items: stretch; gap: 0; }
+.song-row .act-main { flex: 1 1 auto; min-width: 0; display: flex; align-items: center; gap: 12px; padding: 12px 14px; border: 0; background: transparent; text-align: left; cursor: pointer; font: inherit; color: inherit; }
+.song-row .act-title { min-width: 0; font-size: 16px; }
+.song-row .act-stars { font-size: 13px; }
+.song-row .sing-btn { flex: none; margin: 8px 10px 8px 0; align-self: center; font-size: 20px; padding: 8px 10px; }

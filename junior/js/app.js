@@ -5,7 +5,7 @@ import { infoOf, nameOf, LETTER_ORDER, NOTE_INFO, isWhite, rangeFor } from './no
 import { KidKeyboard } from './kidkeyboard.js';
 import { Mascot } from './mascot.js';
 import { Confetti, GameSounds } from './fx.js';
-import { CHAPTERS, ACTIVITIES, DAILY_GOAL, findActivity, chapterOf, isUnlocked, nextActivity, chapterDone, chapterStars, totalStars, songActivities } from './course.js';
+import { CHAPTERS, ACTIVITIES, DAILY_GOAL, findActivity, chapterOf, isUnlocked, nextActivity, chapterDone, chapterStars, totalStars, songActivities, albumStickers, dailyChallenge, OUTFITS, unlockedOutfits } from './course.js';
 import { createActivity } from './activities.js';
 import { SONGS } from './songs.js';
 
@@ -18,12 +18,16 @@ const defaults = {
   done: {},   // done[activityId] = { stars, date, errors }
   days: {},   // days['2026-10-10'] = nombre d'activités terminées ce jour-là
   celebratedDays: {},
+  challenges: {}, // challenges['2026-10-10'] = { id, done }
+  bonus: 0,       // étoiles bonus des défis du jour
+  outfit: {},     // { hat, eyes, neck }
+  clips: {},      // voix enregistrées par les parents : clips[cle] = { mime, data }
 };
 let store = load();
 function load() {
   try {
     const s = JSON.parse(localStorage.getItem(STORE_KEY));
-    if (s) return { ...defaults, ...s, settings: { ...defaults.settings, ...(s.settings || {}) }, done: s.done || {}, days: s.days || {}, celebratedDays: s.celebratedDays || {} };
+    if (s) return { ...defaults, ...s, settings: { ...defaults.settings, ...(s.settings || {}) }, done: s.done || {}, days: s.days || {}, celebratedDays: s.celebratedDays || {}, challenges: s.challenges || {}, bonus: s.bonus || 0, outfit: s.outfit || {}, clips: s.clips || {} };
   } catch (e) { /* ignore */ }
   return JSON.parse(JSON.stringify(defaults));
 }
@@ -35,11 +39,14 @@ const synth = new Synth();
 synth.setVolume(settings.volume);
 const sounds = new GameSounds(synth);
 const confetti = new Confetti($('#confetti'));
+const mascotOpts = () => ({ voice: settings.voice, audio: synth, getClip: (k) => store.clips[k] || null, outfit: store.outfit });
 const mascots = {
-  home: new Mascot($('#mascot-home'), { voice: settings.voice }),
-  chapter: new Mascot($('#mascot-chapter'), { voice: settings.voice }),
-  play: new Mascot($('#mascot-play'), { voice: settings.voice }),
+  home: new Mascot($('#mascot-home'), mascotOpts()),
+  chapter: new Mascot($('#mascot-chapter'), mascotOpts()),
+  play: new Mascot($('#mascot-play'), mascotOpts()),
+  dress: new Mascot($('#mascot-dress'), mascotOpts()),
 };
+const allStars = () => totalStars(store.done) + (store.bonus || 0);
 let gestured = false;      // un geste utilisateur a eu lieu (audio + voix autorisés)
 let activity = null;       // activité en cours
 let currentDef = null;
@@ -115,7 +122,8 @@ function greeting() {
 function renderHome() {
   const done = store.done;
   const next = nextActivity(done, settings.unlockAll);
-  $('#stars-total').textContent = '⭐ ' + totalStars(done);
+  $('#stars-total').textContent = '⭐ ' + allStars();
+  renderChallenge();
   const d = store.days[today()] || 0;
   $('#daily').innerHTML = `<span class="daily-label">Aujourd’hui</span>` + Array.from({ length: DAILY_GOAL }, (_, i) => `<span class="heart ${i < d ? 'on' : ''}">♥</span>`).join('');
   const ch = next.chapter;
@@ -136,6 +144,8 @@ function renderHome() {
     </button>`;
   }).join('<span class="path-link"></span>');
   $('#stickers').innerHTML = `<span class="stickers-label">Mes gommettes</span>` + CHAPTERS.map(c => `<span class="sticker-slot ${chapterDone(c, done) ? 'won' : ''}">${chapterDone(c, done) ? c.sticker : '?'}</span>`).join('');
+  const cur = $('#path .island.current');
+  if (cur) { const path = $('#path'); path.scrollLeft = Math.max(0, cur.offsetLeft - (path.clientWidth - cur.offsetWidth) / 2); }
   updateInputStatus();
 }
 
@@ -148,6 +158,61 @@ $('#path').addEventListener('click', (e) => {
 $('#btn-play').addEventListener('click', () => openActivity(nextActivity(store.done, settings.unlockAll)));
 $('#btn-free').addEventListener('click', () => openFreePlay());
 $('#btn-songs').addEventListener('click', () => openSongs());
+$('#btn-album').addEventListener('click', () => openAlbum());
+$('#mascot-home').addEventListener('click', () => openDress());
+
+// ---------- Défi du jour ----------
+function renderChallenge() {
+  const el = $('#challenge');
+  const day = today();
+  let ch = store.challenges[day];
+  if (!ch) {
+    const a = dailyChallenge(store.done, day);
+    if (!a) { el.hidden = true; return; }
+    ch = { id: a.id, done: false }; store.challenges[day] = ch; save();
+  }
+  const a = findActivity(ch.id);
+  if (!a) { el.hidden = true; return; }
+  el.hidden = false;
+  el.classList.toggle('done', ch.done);
+  el.innerHTML = `<span class="ch-label">${ch.done ? 'Défi du jour réussi' : 'Défi du jour'}</span><span>${a.emoji} ${a.title}</span><span>${ch.done ? '⭐ +1' : '⭐ bonus'}</span>`;
+  el.onclick = () => openActivity(a);
+}
+
+// ---------- Mon album ----------
+function openAlbum() {
+  const list = albumStickers(store.done);
+  const won = list.filter(x => x.won).length;
+  $('#album-count').textContent = `${won} / ${list.length}`;
+  const section = (title, items) => `<div class="album-title">${title}</div>` + items.map(x => `<div class="album-sticker ${x.won ? 'won' : ''}" ${x.songId && x.won ? `data-song="${x.songId}"` : ''}><span class="big">${x.won ? x.emoji : '❔'}</span><span class="lbl">${x.won ? x.label : '?'}</span></div>`).join('');
+  $('#album-body').innerHTML = section('Chapitres', list.filter(x => x.kind === 'chapter')) + section('Chansons', list.filter(x => x.kind === 'song'));
+  showScreen('screen-album');
+}
+$('#album-body').addEventListener('click', (e) => { const el = e.target.closest('.album-sticker[data-song]'); if (el) ctx.openSong(el.dataset.song); });
+$('#btn-album-back').addEventListener('click', () => { renderHome(); showScreen('screen-home'); });
+
+// ---------- Habiller Piou ----------
+function openDress() {
+  const unlocked = new Set(unlockedOutfits(store.done).map(o => o.id));
+  const slots = [['hat', 'Sur la tête'], ['eyes', 'Sur les yeux'], ['neck', 'Autour du cou']];
+  $('#wardrobe').innerHTML = slots.map(([slot, title]) => `<div class="slot-title">${title}</div>
+    <button class="witem none ${!store.outfit[slot] ? 'on' : ''}" data-slot="${slot}" data-id="" type="button"><span class="big">✕</span>Rien</button>` +
+    OUTFITS.filter(o => o.slot === slot).map(o => `<button class="witem ${unlocked.has(o.id) ? '' : 'locked'} ${store.outfit[slot] === o.id ? 'on' : ''}" data-slot="${slot}" data-id="${o.id}" type="button"><span class="big">${unlocked.has(o.id) ? o.emoji : '🔒'}</span>${unlocked.has(o.id) ? o.name : 'Chapitre ' + o.chapter.slice(1)}</button>`).join('')).join('');
+  mascots.dress.setOutfit(store.outfit);
+  showScreen('screen-piou');
+  mascots.dress.say(unlocked.size ? 'Comment tu veux m’habiller aujourd’hui ?' : 'Finis un chapitre pour gagner mon premier déguisement !', { mood: 'happy', speak: gestured });
+}
+$('#wardrobe').addEventListener('click', (e) => {
+  const b = e.target.closest('.witem'); if (!b) return;
+  if (b.classList.contains('locked')) { mascots.dress.say('Celui-là, il faut encore le gagner !', { mood: 'think' }); return; }
+  if (b.dataset.id) store.outfit[b.dataset.slot] = b.dataset.id; else delete store.outfit[b.dataset.slot];
+  save();
+  for (const m of Object.values(mascots)) m.setOutfit(store.outfit);
+  for (const w of $('#wardrobe').querySelectorAll(`.witem[data-slot="${b.dataset.slot}"]`)) w.classList.toggle('on', w === b);
+  mascots.dress.say(b.dataset.id ? Mascot.cheer() + ' J’adore !' : 'Comme ça, je suis tout nu !', { mood: 'happy' });
+  sounds.pop();
+});
+$('#btn-piou-back').addEventListener('click', () => { mascots.dress.hush(); renderHome(); showScreen('screen-home'); });
 
 // ---------- Chapitre ----------
 let currentChapter = null;
@@ -179,13 +244,18 @@ function openSongs() {
   const list = songActivities(store.done, settings.unlockAll);
   $('#songs-list').innerHTML = list.length ? list.map(a => {
     const s = SONGS[a.song]; const d = store.done[a.id];
-    return `<button class="act" data-id="${a.id}" type="button" style="--c:${a.chapter.color}">
-      <span class="act-emoji">${s.emoji}</span><span class="act-title">${s.title}</span>
-      <span class="act-stars">${d ? '⭐'.repeat(d.stars) + '<i>' + '⭐'.repeat(3 - d.stars) + '</i>' : ''}</span></button>`;
+    return `<div class="act song-row" style="--c:${a.chapter.color}">
+      <button class="act-main" data-id="${a.id}" type="button"><span class="act-emoji">${s.emoji}</span><span class="act-title">${s.title}</span>
+      <span class="act-stars">${d ? '⭐'.repeat(d.stars) + '<i>' + '⭐'.repeat(3 - d.stars) + '</i>' : ''}</span></button>
+      <button class="kbtn small sing-btn" data-song="${a.song}" type="button" title="Piou joue, tu chantes">🎤</button></div>`;
   }).join('') : '<p class="empty">Joue le premier chapitre pour débloquer ta première chanson !</p>';
   showScreen('screen-songs');
 }
-$('#songs-list').addEventListener('click', (e) => { const b = e.target.closest('.act'); if (b) openActivity(findActivity(b.dataset.id)); });
+$('#songs-list').addEventListener('click', (e) => {
+  const sing = e.target.closest('.sing-btn');
+  if (sing) { const a = ACTIVITIES.find(x => x.song === sing.dataset.song && x.type === 'melody'); openActivity({ id: 'sing-' + sing.dataset.song, type: 'sing', song: sing.dataset.song, title: 'Chante : ' + SONGS[sing.dataset.song].title, emoji: '🎤', chapter: a.chapter, transient: true }); return; }
+  const b = e.target.closest('.act-main'); if (b) openActivity(findActivity(b.dataset.id));
+});
 $('#btn-songs-back').addEventListener('click', () => { renderHome(); showScreen('screen-home'); });
 
 // ---------- Activité ----------
@@ -196,6 +266,7 @@ const ctx = {
   stickers: () => CHAPTERS.filter(c => chapterDone(c, store.done)).map(c => c.sticker),
   openSong: (songId) => { const a = ACTIVITIES.find(x => x.type === 'melody' && x.song === songId); if (a) openActivity(a); },
   markDone: (stars) => { if (currentDef) recordResult(currentDef, { stars, errors: 0 }, false); },
+  setKeyboardVisible: (v) => { $('#screen-play').classList.toggle('no-kb', !v); },
   finish: (result) => onFinished(result),
 };
 
@@ -204,8 +275,9 @@ function openActivity(def) {
   currentDef = def; freePlay = false;
   const c = def.chapter;
   $('#play-title').textContent = `${def.emoji} ${def.title}`;
-  $('#play-dots').innerHTML = c.activities.map(a => `<i class="${a === def ? 'cur' : store.done[a.id] ? 'on' : ''}"></i>`).join('');
+  $('#play-dots').innerHTML = c.activities.map(a => `<i class="${a.id === def.id ? 'cur' : store.done[a.id] ? 'on' : ''}"></i>`).join('');
   $('#overlay-result').hidden = true;
+  $('#screen-play').classList.remove('no-kb');
   showScreen('screen-play');
   $('#btn-voice').classList.toggle('on', settings.voice);
   activity = createActivity(def, ctx);
@@ -220,6 +292,10 @@ function stopActivity() {
 }
 
 function recordResult(def, result, countDay = true) {
+  if (def.transient) { save(); return { first: false, stars: result.stars }; }
+  const day = today();
+  const ch = store.challenges[day];
+  if (ch && ch.id === def.id && !ch.done) { ch.done = true; store.bonus = (store.bonus || 0) + 1; result.challenge = true; }
   const prev = store.done[def.id];
   const stars = Math.max(result.stars, prev ? prev.stars : 0);
   const first = !prev;
@@ -244,6 +320,7 @@ function onFinished(result) {
   let text = '';
   if (chapterJustDone) text = `Chapitre terminé ! Tu gagnes une gommette ${c.sticker}`;
   else if (dayJustDone) text = 'Ta séance du jour est finie ! ♥♥♥';
+  else if (result.challenge) text = 'Défi du jour réussi : une étoile bonus ! ⭐';
   else if (stars < 3) text = 'Tu peux recommencer pour gagner toutes les étoiles.';
   $('#result-text').textContent = text;
   const next = nextAfter(def);
@@ -257,6 +334,7 @@ function onFinished(result) {
 
 function nextAfter(def) {
   const k = ACTIVITIES.indexOf(def);
+  if (k < 0) return null;
   const n = ACTIVITIES[k + 1];
   if (!n) return null;
   return isUnlocked(n, store.done, settings.unlockAll) ? n : null;
@@ -280,6 +358,7 @@ function openFreePlay() {
   $('#play-title').textContent = '🎹 Piano libre';
   $('#play-dots').innerHTML = '';
   $('#overlay-result').hidden = true;
+  $('#screen-play').classList.remove('no-kb');
   $('#btn-voice').classList.toggle('on', settings.voice);
   keyboard.setRange(...rangeFor([55, 72]));
   $('#stage').innerHTML = `<div class="stage-center free"><div class="target"><div class="nbubble xl ghost"><span class="nname">?</span></div></div>
@@ -361,8 +440,17 @@ function renderParents() {
       <p>Volume : <input type="range" id="p-volume" min="0" max="1" step="0.05" value="${settings.volume}"></p>
     </div>
     <div class="pcard">
+      <h3>La voix des parents</h3>
+      <p>Enregistrez quelques phrases avec votre voix : Piou les utilisera à la place de la voix de synthèse (3 secondes maximum chacune).
+      Pour « Bravo ! » et « Oups ! », il dira la suite de la phrase avec la voix de synthèse.</p>
+      <div class="clips">${CLIP_DEFS.map(c => `<div class="clip ${store.clips[c.key] ? 'has' : ''}" data-key="${c.key}"><span class="clip-name">${c.name}</span>
+        <button class="kbtn small rec" type="button">🎙️ Enregistrer</button><button class="kbtn small play" type="button" ${store.clips[c.key] ? '' : 'disabled'}>▶</button><button class="kbtn small del" type="button" ${store.clips[c.key] ? '' : 'disabled'}>🗑</button>
+        <span class="clip-ex">${c.example}</span></div>`).join('')}</div>
+      <p id="clip-status" class="muted"></p>
+    </div>
+    <div class="pcard">
       <h3>Progression</h3>
-      <p>${doneCount} activité(s) terminée(s), ${totalStars(store.done)} étoiles.</p>
+      <p>${doneCount} activité(s) terminée(s), ${allStars()} étoiles (dont ${store.bonus || 0} de défis du jour).</p>
       <p><button class="kbtn small danger" id="p-reset" type="button">Remettre la progression à zéro</button></p>
     </div>
     <div class="pcard">
@@ -379,9 +467,59 @@ function renderParents() {
   root.querySelector('#p-names').addEventListener('change', (e) => { settings.showNames = e.target.checked; keyboard.setShowNames(settings.showNames); save(); });
   root.querySelector('#p-unlock').addEventListener('change', (e) => { settings.unlockAll = e.target.checked; save(); });
   root.querySelector('#p-volume').addEventListener('input', (e) => { settings.volume = parseFloat(e.target.value); synth.setVolume(settings.volume); save(); });
-  root.querySelector('#p-reset').addEventListener('click', () => { if (confirm('Effacer toute la progression ?')) { store.done = {}; store.days = {}; store.celebratedDays = {}; save(); renderParents(); } });
+  root.querySelector('#p-reset').addEventListener('click', () => { if (confirm('Effacer toute la progression ?')) { store.done = {}; store.days = {}; store.celebratedDays = {}; store.challenges = {}; store.bonus = 0; store.outfit = {}; save(); for (const m of Object.values(mascots)) m.setOutfit({}); renderParents(); } });
+  bindClipRecorder(root);
 }
-$('#btn-parents-back').addEventListener('click', () => { renderHome(); showScreen('screen-home'); });
+$('#btn-parents-back').addEventListener('click', () => { stopRecording(); renderHome(); showScreen('screen-home'); });
+
+// ---------- Voix enregistrées par les parents ----------
+const CLIP_DEFS = [
+  { key: 'cheer', name: 'Bravo !', example: 'Utilisé pour tous les encouragements (Bravo, Super, Génial…).' },
+  { key: 'oops', name: 'Oups !', example: 'Utilisé quand ce n’est pas la bonne touche.' },
+  { key: 'atoi', name: 'À toi !', example: 'Quand c’est à l’enfant de jouer.' },
+  { key: 'ecoute', name: 'Écoute…', example: 'Avant que Piou joue quelque chose.' },
+  ...['do', 're', 'mi', 'fa', 'sol', 'la', 'si'].map((k, i) => ({ key: k, name: ['Do', 'Ré', 'Mi', 'Fa', 'Sol', 'La', 'Si'][i], example: 'Nom de la note, en piano libre.' })),
+];
+let recorder = null, recTimer = null;
+function stopRecording() { if (recorder && recorder.state !== 'inactive') { try { recorder.stop(); } catch (e) { /* ignore */ } } clearTimeout(recTimer); }
+function bindClipRecorder(root) {
+  const status = root.querySelector('#clip-status');
+  const supported = !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia && window.MediaRecorder);
+  if (!supported) { status.textContent = 'L’enregistrement audio n’est pas disponible dans ce navigateur.'; for (const b of root.querySelectorAll('.clip .rec')) b.disabled = true; return; }
+  for (const row of root.querySelectorAll('.clip')) {
+    const key = row.dataset.key;
+    const rec = row.querySelector('.rec'), play = row.querySelector('.play'), del = row.querySelector('.del');
+    rec.addEventListener('click', async () => {
+      if (recorder && recorder.state === 'recording') { stopRecording(); return; }
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        const mime = ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4', 'audio/ogg'].find(m => MediaRecorder.isTypeSupported(m)) || '';
+        recorder = new MediaRecorder(stream, mime ? { mimeType: mime } : undefined);
+        const chunks = [];
+        recorder.ondataavailable = (e) => { if (e.data.size) chunks.push(e.data); };
+        recorder.onstop = async () => {
+          stream.getTracks().forEach(t => t.stop());
+          rec.classList.remove('on'); rec.textContent = '🎙️ Enregistrer';
+          const blob = new Blob(chunks, { type: recorder.mimeType || mime || 'audio/webm' });
+          if (blob.size < 500) { status.textContent = 'Rien n’a été enregistré.'; return; }
+          const buf = await blob.arrayBuffer();
+          let bin = ''; const bytes = new Uint8Array(buf); for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000));
+          store.clips[key] = { mime: blob.type, data: btoa(bin) };
+          save();
+          for (const m of Object.values(mascots)) m._decoded.clear();
+          row.classList.add('has'); play.disabled = false; del.disabled = false;
+          status.textContent = `« ${CLIP_DEFS.find(c => c.key === key).name} » enregistré (${Math.round(blob.size / 1024)} ko).`;
+        };
+        recorder.start();
+        rec.classList.add('on'); rec.textContent = '⏹ Stop';
+        status.textContent = 'Enregistrement… parlez maintenant (3 s max).';
+        recTimer = setTimeout(stopRecording, 3000);
+      } catch (e) { status.textContent = 'Micro refusé ou indisponible : ' + (e && e.message ? e.message : e); }
+    });
+    play.addEventListener('click', () => { mascots.home.hush(); mascots.home._playClip(key); });
+    del.addEventListener('click', () => { delete store.clips[key]; save(); row.classList.remove('has'); play.disabled = true; del.disabled = true; status.textContent = 'Enregistrement effacé.'; });
+  }
+}
 
 // Clavier d'ordinateur (pour tester sans piano) : a w s e d f t g y h u j k … et q z x c v b n pour Sol3…Si3
 const KEYMAP = { a: 60, w: 61, s: 62, e: 63, d: 64, f: 65, t: 66, g: 67, y: 68, h: 69, u: 70, j: 71, k: 72, o: 73, l: 74, p: 75, m: 76, z: 55, x: 57, c: 59 };

@@ -71,7 +71,50 @@ export const CHAPTERS = [
       { id: 'c6-part1', type: 'melody', song: 'anniv-1', title: 'Joyeux anniversaire (le début)', emoji: '🎂' },
       { id: 'c6-part2', type: 'melody', song: 'anniv-2', title: 'Joyeux anniversaire (la fin)', emoji: '🎂' },
       { id: 'c6-song', type: 'melody', song: 'anniv', title: 'Joyeux anniversaire (en entier)', emoji: '🎉' },
-      { id: 'c6-party', type: 'party', title: 'La fête !', emoji: '🥳' },
+    ],
+  },
+  {
+    id: 'c7', title: 'Plus haut, plus bas', emoji: '👂', sticker: '🐘', color: '#9b5cff',
+    intro: 'Ferme les yeux : on joue avec les oreilles. Les notes montent et descendent !',
+    activities: [
+      { id: 'c7-ear3', type: 'ear', notes: ['C4', 'E4', 'G4'], choices: 3, rounds: 5, title: 'Grandes oreilles : trois notes', emoji: '👂' },
+      { id: 'c7-updown', type: 'updown', notes: ['C4', 'D4', 'E4', 'F4', 'G4', 'A4', 'B4', 'C5'], minGap: 5, rounds: 5, title: 'Plus haut ou plus bas ?', emoji: '↕️' },
+      { id: 'c7-ear-close', type: 'ear', notes: ['C4', 'D4', 'E4'], choices: 3, rounds: 5, title: 'Grandes oreilles : les voisines', emoji: '👂' },
+      { id: 'c7-updown-close', type: 'updown', notes: ['C4', 'D4', 'E4', 'F4', 'G4', 'A4', 'B4', 'C5'], minGap: 2, rounds: 5, title: 'Plus haut ou plus bas ? (tout près)', emoji: '↕️' },
+    ],
+  },
+  {
+    id: 'c8', title: 'Le rythme', emoji: '🥁', sticker: '🐰', color: '#ff9b1a',
+    intro: 'La musique, ça se tape dans les mains ! On suit la pulsation, puis on joue en même temps que moi.',
+    activities: [
+      { id: 'c8-beat1', type: 'beat', song: 'clair-debut', title: 'Tape avec Piou', emoji: '👏' },
+      { id: 'c8-beat2', type: 'beat', song: 'frere-jacques', title: 'Tape avec Piou : Frère Jacques', emoji: '👏' },
+      { id: 'c8-along1', type: 'playalong', song: 'clair-debut', title: 'Joue avec Piou', emoji: '🎶' },
+      { id: 'c8-along2', type: 'playalong', song: 'maman-debut', title: 'Joue avec Piou : Ah ! vous dirai-je', emoji: '🎶' },
+      { id: 'c8-along3', type: 'playalong', song: 'clair', title: 'Joue avec Piou : Au clair de la lune', emoji: '🎶' },
+    ],
+  },
+  {
+    id: 'c9', title: 'Les copains', emoji: '🤝', sticker: '🐼', color: '#3ecf5a',
+    intro: 'Deux notes en même temps, ça fait des copains ! Et on peut jouer avec les deux mains.',
+    activities: [
+      { id: 'c9-do-sol', type: 'pair', notes: ['C4', 'G4'], title: 'Do et Sol, les copains', emoji: '🤝' },
+      { id: 'c9-do-mi', type: 'pair', notes: ['C4', 'E4'], title: 'Do et Mi, les copains', emoji: '🤝' },
+      { id: 'c9-song', type: 'melody', song: 'copains', title: 'La chanson des copains', emoji: '🎵' },
+      { id: 'c9-hands', type: 'pair', notes: ['C3', 'C4'], hands: true, title: 'Les deux mains', emoji: '🙌' },
+      { id: 'c9-clair', type: 'melody', song: 'clair-mains', title: 'Au clair de la lune à deux mains', emoji: '🙌' },
+    ],
+  },
+  {
+    id: 'c10', title: 'Chante avec Piou', emoji: '🎤', sticker: '🦜', color: '#ff5fb9', freeOrder: true,
+    intro: 'Choisis ta chanson préférée ! Tu peux la jouer, ou juste chanter avec moi.',
+    activities: [
+      { id: 'c10-sing-clair', type: 'sing', song: 'clair', title: 'Chante : Au clair de la lune', emoji: '🎤' },
+      { id: 'c10-mathurin', type: 'melody', song: 'mathurin', title: 'Dans la ferme de Mathurin', emoji: '🐮' },
+      { id: 'c10-vent', type: 'melody', song: 'vive-le-vent', title: 'Vive le vent', emoji: '🎄' },
+      { id: 'c10-ode', type: 'melody', song: 'ode', title: 'Ode à la joie', emoji: '🎻' },
+      { id: 'c10-sing-vent', type: 'sing', song: 'vive-le-vent', title: 'Chante : Vive le vent', emoji: '🎤' },
+      { id: 'c10-party', type: 'party', title: 'La fête !', emoji: '🥳' },
     ],
   },
 ];
@@ -88,8 +131,50 @@ export function isUnlocked(activity, done, unlockAll = false) {
   if (unlockAll) return true;
   const k = ACTIVITIES.indexOf(activity);
   if (k <= 0) return true;
+  const ch = activity.chapter;
+  if (ch.freeOrder) {
+    const first = ACTIVITIES.findIndex(x => x.id === ch.activities[0].id);
+    const chapterOpen = first === 0 || !!done[ACTIVITIES[first - 1].id];
+    if (activity.type === 'party') return chapterOpen && ch.activities.filter(a => a.type !== 'party').every(a => done[a.id]);
+    return chapterOpen;
+  }
   return !!done[ACTIVITIES[k - 1].id];
 }
+
+// Gommettes de l'album : une par chapitre terminé et une par chanson jouée.
+export function albumStickers(done) {
+  const out = CHAPTERS.map(c => ({ id: 'ch-' + c.id, emoji: c.sticker, label: c.title, won: chapterDone(c, done), kind: 'chapter' }));
+  const seen = new Set();
+  for (const a of ACTIVITIES) {
+    if (a.type !== 'melody' || seen.has(a.song)) continue;
+    seen.add(a.song);
+    out.push({ id: 'song-' + a.song, emoji: a.emoji, label: a.title, won: !!done[a.id], kind: 'song', songId: a.song });
+  }
+  return out;
+}
+
+// Défi du jour : une activité déjà réussie, tirée au sort selon la date (hors chant et fête).
+export function dailyChallenge(done, dateStr) {
+  const pool = ACTIVITIES.filter(a => done[a.id] && a.type !== 'party' && a.type !== 'sing');
+  if (pool.length < 2) return null;
+  let h = 0; for (const ch of dateStr) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
+  return pool[h % pool.length];
+}
+
+// Accessoires de Piou : un par chapitre terminé.
+export const OUTFITS = [
+  { id: 'party', slot: 'hat', name: 'Chapeau de fête', chapter: 'c1', emoji: '🎉' },
+  { id: 'glasses', slot: 'eyes', name: 'Lunettes', chapter: 'c2', emoji: '👓' },
+  { id: 'bow', slot: 'neck', name: 'Nœud papillon', chapter: 'c3', emoji: '🎀' },
+  { id: 'crown', slot: 'hat', name: 'Couronne', chapter: 'c4', emoji: '👑' },
+  { id: 'scarf', slot: 'neck', name: 'Écharpe', chapter: 'c5', emoji: '🧣' },
+  { id: 'cape', slot: 'neck', name: 'Cape de super-héros', chapter: 'c6', emoji: '🦸' },
+  { id: 'headphones', slot: 'hat', name: 'Casque', chapter: 'c7', emoji: '🎧' },
+  { id: 'sunglasses', slot: 'eyes', name: 'Lunettes de soleil', chapter: 'c8', emoji: '😎' },
+  { id: 'medal', slot: 'neck', name: 'Médaille', chapter: 'c9', emoji: '🏅' },
+  { id: 'cap', slot: 'hat', name: 'Casquette', chapter: 'c10', emoji: '🧢' },
+];
+export function unlockedOutfits(done) { return OUTFITS.filter(o => chapterDone(chapterOf(o.chapter), done)); }
 
 export function nextActivity(done, unlockAll = false) {
   return ACTIVITIES.find(a => !done[a.id] && isUnlocked(a, done, unlockAll)) || ACTIVITIES[ACTIVITIES.length - 1];

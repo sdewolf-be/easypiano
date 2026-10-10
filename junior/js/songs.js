@@ -125,6 +125,56 @@ export const SONGS = {
              Joy eux an ni ver sai re
              Joy eux an ni ver saire`,
   },
+  'mathurin': {
+    title: 'Dans la ferme de Mathurin',
+    emoji: '🐮',
+    tempo: 104,
+    timeSig: [4, 4],
+    right: `C4/8 C4 C4/4 C4 G4 | A4 A4 G4/2 | E4/4 E4 D4 D4 | C4/1
+            C4/8 C4 C4/4 C4 G4 | A4 A4 G4/2 | E4/4 E4 D4 D4 | C4/1`,
+    lyrics: `Dans la fer me de Ma thu rin i a i a o
+             Dans la fer me de Ma thu rin i a i a o`,
+  },
+  'vive-le-vent': {
+    title: 'Vive le vent',
+    emoji: '🎄',
+    tempo: 110,
+    timeSig: [4, 4],
+    right: `E4/4 E4 E4/2 | E4/4 E4 E4/2 | E4/4 G4 C4 D4 | E4/1
+            F4/4 F4 F4 F4 | F4 E4 E4 E4/8 E4/8 | E4/4 D4 D4 E4 | D4/2 G4/2
+            E4/4 E4 E4/2 | E4/4 E4 E4/2 | E4/4 G4 C4 D4 | E4/1
+            F4/4 F4 F4 F4 | F4 E4 E4 E4/8 E4/8 | G4/4 G4 F4 D4 | C4/1`,
+    lyrics: `Vive le vent vive le vent vive le vent d'hi ver
+             qui s'en va sif flant souf flant dans les grands sa pins verts oh !
+             Vive le temps vive le temps vive le temps d'hi ver
+             boule de neige et jour de l'an et bonne an née grand mère !`,
+  },
+  'ode': {
+    title: 'Ode à la joie',
+    emoji: '🎻',
+    tempo: 100,
+    timeSig: [4, 4],
+    right: `E4/4 E4 F4 G4 | G4 F4 E4 D4 | C4 C4 D4 E4 | E4/4. D4/8 D4/2
+            E4/4 E4 F4 G4 | G4 F4 E4 D4 | C4 C4 D4 E4 | D4/4. C4/8 C4/2`,
+    lyrics: '',
+  },
+  'copains': {
+    title: 'La chanson des copains',
+    emoji: '🤝',
+    tempo: 80,
+    timeSig: [4, 4],
+    right: `[C4 E4]/2 [C4 E4]/2 | [D4 F4]/2 [D4 F4]/2 | [C4 G4]/2 [C4 G4]/2 | [C4 E4]/1
+            [C4 G4]/2 [D4 G4]/2 | [C4 E4]/2 [D4 F4]/2 | [C4 E4]/1`,
+    lyrics: '',
+  },
+  'clair-mains': {
+    title: 'Au clair de la lune à deux mains',
+    emoji: '🙌',
+    tempo: 84,
+    timeSig: [4, 4],
+    right: `[C3 C4]/4 C4 C4 D4 | [C3 E4]/2 D4/2 | [C3 C4]/4 E4 D4 D4 | [C3 C4]/1`,
+    lyrics: 'Au clair de la lu ne mon a mi Pier rot',
+  },
 };
 
 // Analyse d'une chanson : liste de notes (avec phrase, paroles, temps, durée) + étendue.
@@ -139,7 +189,8 @@ export function parseJuniorSong(id) {
     const v = parseVoice(line, 'R', def.timeSig || [4, 4]);
     for (const ev of v.events) {
       if (ev.rest) continue;
-      notes.push({ midi: ev.notes[0].midi, t: t + ev.t, dur: ev.dur, phrase, lyric: lyrics[li++] || '' });
+      const midis = ev.notes.map(n => n.midi);
+      notes.push({ midi: midis[midis.length - 1], midis, chord: midis.length > 1, t: t + ev.t, dur: ev.dur, phrase, lyric: lyrics[li++] || '' });
     }
     t += v.totalBeats;
   });

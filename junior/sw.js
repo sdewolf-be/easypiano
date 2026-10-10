@@ -1,5 +1,5 @@
 // Service worker de la version junior : mise en cache pour un usage hors ligne (réseau d'abord, cache en secours).
-const CACHE = 'easypiano-junior-v1';
+const CACHE = 'easypiano-junior-v2';
 const ASSETS = ['./', 'index.html', 'css/junior.css', 'manifest.webmanifest',
   'js/app.js', 'js/activities.js', 'js/course.js', 'js/songs.js', 'js/notes.js', 'js/mascot.js', 'js/kidkeyboard.js', 'js/fx.js',
   '../js/music.js', '../js/synth.js', '../js/midi.js',

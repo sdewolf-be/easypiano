@@ -26,14 +26,16 @@
         <button class="gear" id="btn-parents" type="button" title="Coin des parents (appui long)">⚙︎<span class="hold-ring"></span></button>
       </header>
       <section class="home-top">
-        <div class="mascot home-mascot" id="mascot-home"></div>
+        <div class="mascot home-mascot" id="mascot-home" title="Habiller Piou"></div>
         <div class="home-actions">
           <button class="kbtn giant" id="btn-play" type="button">▶ Jouer</button>
           <div class="home-sub" id="home-next"></div>
           <div class="row">
             <button class="kbtn" id="btn-free" type="button">🎹 Piano libre</button>
             <button class="kbtn" id="btn-songs" type="button">🎵 Mes chansons</button>
+            <button class="kbtn" id="btn-album" type="button">📒 Mon album</button>
           </div>
+          <button class="challenge" id="challenge" type="button" hidden></button>
         </div>
       </section>
       <section class="path" id="path"></section>
@@ -61,6 +63,28 @@
       </header>
       <section class="chapter-body">
         <div class="activities" id="songs-list"></div>
+      </section>
+    </main>
+
+    <!-- Mon album de gommettes -->
+    <main id="screen-album" class="screen" hidden>
+      <header class="jbar">
+        <button class="kbtn icon" id="btn-album-back" type="button" title="Retour">‹</button>
+        <div class="title">📒 Mon album</div>
+        <div class="stars-total" id="album-count"></div>
+      </header>
+      <section class="album-body" id="album-body"></section>
+    </main>
+
+    <!-- Habiller Piou -->
+    <main id="screen-piou" class="screen" hidden>
+      <header class="jbar">
+        <button class="kbtn icon" id="btn-piou-back" type="button" title="Retour">‹</button>
+        <div class="title">👒 Habiller Piou</div>
+      </header>
+      <section class="piou-body-screen">
+        <div class="mascot big" id="mascot-dress"></div>
+        <div class="wardrobe" id="wardrobe"></div>
       </section>
     </main>
 
