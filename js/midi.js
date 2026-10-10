@@ -45,21 +45,41 @@ export class MidiInput {
     }
   }
 
+  // Énumération des entrées, tolérante : Map moderne, itérateur ancien (next() seul),
+  // forEach (valeur, clé) ou (clé, valeur), entries(), keys()+get(), tableau…
   _inputs() {
-    const list = [];
-    if (!this.access) return list;
+    if (!this.access) return [];
     let inp = this.access.inputs;
-    try {
-      if (typeof inp === 'function') inp = inp.call(this.access);
-      if (!inp) return list;
-      if (typeof inp.values === 'function') { for (const i of inp.values()) list.push(i); }
-      else if (typeof inp.forEach === 'function') { inp.forEach((i) => list.push(i)); }
-      else if (typeof inp.length === 'number') { for (let k = 0; k < inp.length; k++) list.push(inp[k]); }
-      else { for (const k of Object.keys(inp)) if (inp[k] && typeof inp[k] === 'object') list.push(inp[k]); }
-    } catch (e) {
-      this._log('Lecture des entrées impossible : ' + e.message);
+    try { if (typeof inp === 'function') inp = inp.call(this.access); } catch (e) { this._log('inputs() : ' + e.message); }
+    if (!inp) return [];
+    const isPort = (v) => v && typeof v === 'object' && ('onmidimessage' in v || 'name' in v || 'id' in v || 'type' in v);
+    const collect = (it) => {
+      const out = [];
+      if (!it) return out;
+      try {
+        if (typeof it[Symbol.iterator] === 'function') { for (const v of it) out.push(v); }
+        else if (typeof it.next === 'function') { let r, guard = 0; while (guard++ < 500 && !(r = it.next()).done) out.push(r.value); }
+        else if (typeof it.length === 'number') { for (let k = 0; k < it.length; k++) out.push(it[k]); }
+      } catch (e) { this._log('itération : ' + e.message); }
+      // entries() renvoie des paires [clé, valeur]
+      return out.map(v => (Array.isArray(v) ? v.find(isPort) : v)).filter(isPort);
+    };
+    const strategies = [
+      ['forEach', () => { const out = []; if (typeof inp.forEach === 'function') inp.forEach((...args) => { const port = args.find(isPort); if (port) out.push(port); }); return out; }],
+      ['values', () => (typeof inp.values === 'function' ? collect(inp.values()) : [])],
+      ['entries', () => (typeof inp.entries === 'function' ? collect(inp.entries()) : [])],
+      ['keys+get', () => { const out = []; if (typeof inp.keys === 'function' && typeof inp.get === 'function') { for (const k of collectKeys(inp.keys())) { const v = inp.get(k); if (isPort(v)) out.push(v); } } return out; }],
+      ['tableau', () => collect(inp)],
+      ['objet', () => Object.keys(inp).map(k => inp[k]).filter(isPort)],
+    ];
+    const collectKeys = (it) => { const out = []; try { if (it && typeof it[Symbol.iterator] === 'function') for (const v of it) out.push(v); else if (it && typeof it.next === 'function') { let r, g = 0; while (g++ < 500 && !(r = it.next()).done) out.push(r.value); } } catch (e) { /* ignore */ } return out; };
+    for (const [name, fn] of strategies) {
+      try {
+        const list = fn();
+        if (list.length) { if (this._strategy !== name) { this._strategy = name; this._log('Entrées lues via ' + name + ' : ' + list.length); } return list; }
+      } catch (e) { this._log(name + ' : ' + e.message); }
     }
-    return list;
+    return [];
   }
 
   devices() {
@@ -125,6 +145,8 @@ export class MidiInput {
       access: !!this.access,
       error: this.error,
       inputsType: this.access ? (typeof this.access.inputs) + (this.access.inputs && this.access.inputs.constructor ? ' ' + this.access.inputs.constructor.name : '') : '-',
+      inputsApi: this.access && this.access.inputs ? ['forEach', 'values', 'entries', 'keys', 'get', 'size', 'length'].filter(k => { try { return k in this.access.inputs; } catch (e) { return false; } }).join(',') : '-',
+      strategy: this._strategy || null,
       inputs: inputs.map(i => ({ id: i.id, name: i.name, manufacturer: i.manufacturer, state: i.state, connection: i.connection, type: i.type })),
       messageCount: this.messageCount,
       lastMessageAt: this.lastMessageAt,
