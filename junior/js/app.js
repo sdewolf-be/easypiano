@@ -302,7 +302,7 @@ function freeNote(midi) {
     b.style.setProperty('--c', info.color); b.style.setProperty('--cd', info.dark); b.style.setProperty('--ink', info.ink);
     b.innerHTML = `<span class="nname">${info.name}</span>`;
     t.appendChild(b);
-    if (freeSpeak) { clearTimeout(freeTimer); freeTimer = setTimeout(() => mascots.play.say(info.name, { mood: 'sing' }), 60); }
+    if (freeSpeak) { clearTimeout(freeTimer); freeTimer = setTimeout(() => mascots.play.say(info.name, { mood: 'sing', interrupt: true }), 60); }
     else mascots.play.say(info.name, { mood: 'sing', speak: false });
   } else {
     t.innerHTML = '<div class="nbubble xl black"><span class="nname">♯</span></div>';

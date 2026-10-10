@@ -15,6 +15,8 @@ export class Activity {
   }
   later(ms, fn) { const id = setTimeout(() => { this.timers.delete(id); if (this.running) fn(); }, ms); this.timers.add(id); return id; }
   async sleep(ms) { await wait(ms); return this.running; }
+  // Piou parle, et on attend la fin de sa phrase (ou un court délai sans voix) avant d'enchaîner.
+  async talk(text, opts = {}) { await this.mascot.say(text, opts); return this.running; }
   start() { this.running = true; }
   stop() { this.running = false; for (const t of this.timers) clearTimeout(t); this.timers.clear(); this.kb.clear(); this.mascot.hush(); }
   noteOn(midi) { /* par défaut : rien */ }
@@ -64,8 +66,8 @@ export class DiscoverActivity extends Activity {
     const intro = isSized
       ? `Voici ${spoken} ! Il est ${this.info.colorName}, comme l’autre ${this.info.name}. Écoute…`
       : `Voici ${this.info.name} ! ${this.info.name}, c’est la touche ${this.info.colorFem}. Écoute…`;
-    this.mascot.say(intro, { mood: 'think' });
-    if (!await this.sleep(2600)) return;
+    if (!await this.talk(intro, { mood: 'think' })) return;
+    if (!await this.sleep(300)) return;
     for (let i = 0; i < 3 && this.running; i++) {
       this.kb.light(this.keyFor(this.midi), 450);
       this.playNote(this.midi, 0.6);
@@ -112,8 +114,8 @@ export class FindActivity extends Activity {
     this.k = 0; this.wrongHere = 0;
     this.kb.setRange(...rangeFor(this.pool));
     this.stage.innerHTML = `<div class="stage-center"><div class="target"></div>${this.progressDots(this.total, 0)}</div>`;
-    this.mascot.say(this.byColor ? 'On joue aux couleurs ! Appuie sur la touche de la couleur que je te montre.' : 'Retrouve les notes que je te demande !', { mood: 'think' });
-    this.later(2200, () => this.next());
+    this.talk(this.byColor ? 'On joue aux couleurs ! Appuie sur la touche de la couleur que je te montre.' : 'Retrouve les notes que je te demande !', { mood: 'think' })
+      .then(ok => { if (ok) this.later(300, () => this.next()); });
   }
   next() {
     let m; do { m = pick(this.pool); } while (m === this.target && this.pool.length > 1);
@@ -171,8 +173,7 @@ export class EchoActivity extends Activity {
     this.kb.setRange(...rangeFor(this.pool));
     this.stage.innerHTML = `<div class="stage-center"><div class="seq"></div>${this.progressDots(this.rounds, 0)}<button class="kbtn replay" type="button">🔊 Encore</button></div>`;
     this.stage.querySelector('.replay').addEventListener('click', () => { if (this.listening) this.demo(); });
-    this.mascot.say('Écoute bien, puis rejoue la même chose que moi !', { mood: 'think' });
-    this.later(2300, () => this.nextRound());
+    this.talk('Écoute bien, puis rejoue la même chose que moi !', { mood: 'think' }).then(ok => { if (ok) this.later(300, () => this.nextRound()); });
   }
   nextRound() {
     this.seq = [];
@@ -189,10 +190,10 @@ export class EchoActivity extends Activity {
   async demo() {
     this.listening = false; this.busy = true;
     this.kb.setExpected([]);
-    this.mascot.say('Écoute…', { mood: 'sing' });
     const bubbles = this.stage.querySelectorAll('.nbubble');
     bubbles.forEach(b => b.classList.add('hidden-note'));
-    if (!await this.sleep(800)) return;
+    if (!await this.talk('Écoute…', { mood: 'sing' })) return;
+    if (!await this.sleep(300)) return;
     for (let i = 0; i < this.seq.length; i++) {
       const m = this.seq[i];
       bubbles[i]?.classList.remove('hidden-note'); bubbles[i]?.classList.add('pulse');
@@ -232,9 +233,8 @@ export class EchoActivity extends Activity {
       this.errors++;
       this.kb.flash(midi, 'bad', 400);
       this.sounds.oops();
-      this.mascot.say(`${Mascot.oops()} Écoute encore.`, { mood: 'oops' });
       this.listening = false; this.busy = true;
-      this.later(1200, () => { this.busy = false; this.demo(); });
+      this.talk(`${Mascot.oops()} Écoute encore.`, { mood: 'oops' }).then(ok => { if (ok) { this.busy = false; this.demo(); } });
     }
   }
 }
@@ -249,8 +249,7 @@ export class EarActivity extends Activity {
     this.kb.setRange(...rangeFor(this.pool));
     this.stage.innerHTML = `<div class="stage-center"><div class="seq choices"></div>${this.progressDots(this.rounds, 0)}<button class="kbtn replay" type="button">🔊 Réécouter</button></div>`;
     this.stage.querySelector('.replay').addEventListener('click', () => { if (this.listening) this.playTarget(); });
-    this.mascot.say('Ferme les yeux et écoute. Puis appuie sur la note que tu as entendue !', { mood: 'think' });
-    this.later(2800, () => this.nextRound());
+    this.talk('Ferme les yeux et écoute. Puis appuie sur la note que tu as entendue !', { mood: 'think' }).then(ok => { if (ok) this.later(300, () => this.nextRound()); });
   }
   nextRound() {
     this.target = pick(this.pool); this.wrongHere = 0;
@@ -288,9 +287,8 @@ export class EarActivity extends Activity {
       this.errors++; this.wrongHere++;
       this.kb.flash(midi, 'bad', 400);
       this.sounds.oops();
-      this.mascot.say(`${Mascot.oops()} Écoute encore.`, { mood: 'oops' });
       if (this.wrongHere >= 2) this.showKey(this.target);
-      this.later(1000, () => { if (this.listening) this.playTarget(); });
+      this.talk(`${Mascot.oops()} Écoute encore.`, { mood: 'oops' }).then(ok => { if (ok && this.listening) this.playTarget(); });
     }
   }
 }
@@ -317,8 +315,7 @@ export class MelodyActivity extends Activity {
     });
     this.stage.querySelector('.demo').addEventListener('click', () => this.demo());
     this.stage.querySelector('.restart').addEventListener('click', () => this.restart());
-    this.mascot.say(`On joue « ${this.song.title} » ! Suis les bulles de couleur.`, { mood: 'think' });
-    this.later(2000, () => this.expect());
+    this.talk(`On joue « ${this.song.title} » ! Suis les bulles de couleur.`, { mood: 'think' }).then(ok => { if (ok) this.expect(); });
   }
   restart() {
     if (this.demoing) return;
@@ -343,7 +340,7 @@ export class MelodyActivity extends Activity {
     if (this.demoing) return;
     this.demoing = true; this.busy = true;
     this.kb.setExpected([]);
-    this.mascot.say('Écoute, je te la joue !', { mood: 'sing' });
+    if (!await this.talk('Écoute, je te la joue !', { mood: 'sing' })) return;
     const secPerBeat = 60 / this.song.tempo;
     const t0 = this.synth.now + 0.3;
     for (const n of this.notes) this.synth.playNote(n.midi, n.dur * secPerBeat * 0.9, 0.7, t0 + n.t * secPerBeat);

@@ -32,8 +32,25 @@ const SVG = `
   </g>
 </svg>`;
 
-const CHEERS = ['Bravo !', 'Super !', 'Génial !', 'Ouiii !', 'Trop fort !', 'Magnifique !', 'Youpi !', 'C’est ça !'];
-const OOPS = ['Oups !', 'Presque !', 'Pas tout à fait…', 'Hmm…', 'Essaie encore !'];
+// Texte affiché / texte prononcé : la synthèse vocale lit mal les onomatopées et les symboles.
+const CHEERS = [['Bravo !'], ['Super !'], ['Génial !'], ['Ouiii !', 'Oui !'], ['Trop fort !'], ['Magnifique !'], ['Youpi !', 'Youpi !'], ['C’est ça !']];
+const OOPS = [['Oups !', 'Oh !'], ['Presque !'], ['Pas tout à fait…', 'Pas tout à fait.'], ['Essaie encore !']];
+
+// Rend un texte prononçable : retire emojis, symboles, guillemets, points de suspension et interjections.
+export function toSpoken(text) {
+  return String(text)
+    .replace(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}♪♫♥★⭐✓→←]/gu, ' ')
+    .replace(/«\s*|\s*»/g, ' ')
+    .replace(/…/g, '.')
+    .replace(/\bHmm+\b\.?/gi, '')
+    .replace(/\bOu+i+\b/gi, 'Oui')
+    .replace(/\bOups\b/gi, 'Oh')
+    .replace(/\s+([!?.,])/g, '$1')
+    .replace(/\s{2,}/g, ' ')
+    .trim();
+}
+
+const SPOKEN_MAP = new Map();
 
 export class Mascot {
   constructor(root, opts = {}) {
@@ -45,7 +62,9 @@ export class Mascot {
     this.bubbleText = root.querySelector('.bubble-text');
     this.moodTimer = null;
     this._voiceObj = null;
-    this._lastSpoken = '';
+    this.pending = null;
+    this.speaking = false;
+    this._current = null;
     if ('speechSynthesis' in window) {
       const pickVoice = () => {
         const voices = speechSynthesis.getVoices().filter(v => /^fr/i.test(v.lang));
@@ -60,35 +79,63 @@ export class Mascot {
     }
   }
 
-  static cheer() { return CHEERS[Math.floor(Math.random() * CHEERS.length)]; }
-  static oops() { return OOPS[Math.floor(Math.random() * OOPS.length)]; }
+  // Renvoie une chaîne affichable dont la version parlée est accessible via Mascot.spokenOf().
+  static cheer() { return Mascot._pick(CHEERS); }
+  static oops() { return Mascot._pick(OOPS); }
+  static _pick(list) { const [shown, spoken] = list[Math.floor(Math.random() * list.length)]; if (spoken) SPOKEN_MAP.set(shown, spoken); return shown; }
+  static spokenOf(text) { let t = text; for (const [shown, spoken] of SPOKEN_MAP) t = t.split(shown).join(spoken); return toSpoken(t); }
 
   // Affiche le texte dans la bulle et le lit à voix haute (sauf speak: false).
-  say(text, { mood = null, speak = true, spoken = null } = {}) {
+  // Renvoie une promesse résolue à la fin de la lecture (ou après un court délai sans voix).
+  say(text, { mood = null, speak = true, spoken = null, interrupt = false } = {}) {
     this.bubble.hidden = !text;
     this.bubbleText.textContent = text || '';
     this.bubble.classList.remove('pop'); void this.bubble.offsetWidth; this.bubble.classList.add('pop');
     if (mood) this.setMood(mood);
-    if (speak && text) this.speak(spoken || text);
+    if (speak && text) return this.speak(spoken || Mascot.spokenOf(text), { interrupt });
+    return new Promise(r => setTimeout(() => r(false), Math.min(2500, 600 + (text || '').length * 45)));
   }
 
-  speak(text) {
-    if (!this.voice || !('speechSynthesis' in window)) return;
+  // File d'attente : la phrase en cours se termine ; une seule phrase en attente (la dernière) est conservée.
+  speak(text, { interrupt = false } = {}) {
+    const clean = toSpoken(text);
+    if (!this.voice || !('speechSynthesis' in window) || !clean) return Promise.resolve(false);
+    if (interrupt) this.hush();
+    if (this.pending) { this.pending.resolve(false); this.pending = null; }
+    return new Promise((resolve) => { this.pending = { text: clean, resolve }; this._pump(); });
+  }
+
+  _pump() {
+    if (this.speaking || !this.pending) return;
+    const item = this.pending; this.pending = null;
+    this.speaking = true;
+    let done = false;
+    const finish = (ok) => { if (done) return; done = true; clearTimeout(timer); if (this._finishCurrent === finish) this._finishCurrent = null; this.speaking = false; item.resolve(ok); setTimeout(() => this._pump(), 120); };
+    const timer = setTimeout(() => finish(true), 2000 + item.text.length * 90);   // secours si onend n'arrive jamais
     try {
-      speechSynthesis.cancel();
-      const u = new SpeechSynthesisUtterance(text.replace(/[♪♫]/g, ''));
+      const u = new SpeechSynthesisUtterance(item.text);
       u.lang = 'fr-FR';
-      u.rate = 0.95;
-      u.pitch = 1.25;
+      u.rate = 0.92;
+      u.pitch = 1.1;
       if (this._voiceObj) u.voice = this._voiceObj;
-      // Petit délai après cancel() : sans lui, Safari avale parfois la phrase suivante.
-      clearTimeout(this._speakTimer);
-      this._speakTimer = setTimeout(() => { try { speechSynthesis.speak(u); } catch (e) { /* ignore */ } }, 60);
-      this._lastSpoken = text;
-    } catch (e) { /* synthèse vocale indisponible */ }
+      u.onend = () => finish(true);
+      u.onerror = () => finish(false);
+      this._current = u;
+      this._finishCurrent = finish;
+      // Safari : un cancel() juste avant speak() avale parfois la phrase ; on laisse un instant.
+      this._startTimer = setTimeout(() => { if (this._current !== u) return; try { speechSynthesis.speak(u); } catch (e) { finish(false); } }, 40);
+    } catch (e) { finish(false); }
   }
 
-  hush() { try { if ('speechSynthesis' in window) speechSynthesis.cancel(); } catch (e) { /* ignore */ } }
+  // Coupe la parole (changement d'écran, fin d'activité) et vide la file.
+  hush() {
+    if (this.pending) { this.pending.resolve(false); this.pending = null; }
+    try { if ('speechSynthesis' in window) speechSynthesis.cancel(); } catch (e) { /* ignore */ }
+    clearTimeout(this._startTimer);
+    if (this._current) { const u = this._current; this._current = null; u.onend = null; u.onerror = null; }
+    if (this._finishCurrent) { const f = this._finishCurrent; this._finishCurrent = null; f(false); }
+    this.speaking = false;
+  }
 
   // Humeurs : idle (respire), happy (saute), oops (se dandine), think (regarde en l'air), sing (chante).
   setMood(mood, ms = 1800) {
