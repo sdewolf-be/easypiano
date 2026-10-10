@@ -44,11 +44,11 @@ function handleNote(e) {
 const midi = new MidiInput(handleNote);
 midi.onDevicesChanged = () => { updateInputStatus(); renderSettings(); };
 
-async function setupMidi() {
+async function setupMidi(force = false) {
   if (!MidiInput.supported) return false;
-  if (!midi.access) await midi.init();
+  await midi.init(force);
   midi.select(settings.midiDevice);
-  return midi.devices().some(d => d.state === 'connected');
+  return midi.connectedDevices().length > 0;
 }
 
 async function activateInputs() {
@@ -57,8 +57,8 @@ async function activateInputs() {
   let label = 'Clavier à l’écran';
   activeInput = 'screen';
   if (settings.input === 'midi') {
-    const ok = await setupMidi();
-    if (ok) { activeInput = 'midi'; label = 'MIDI : ' + midi.devices().filter(d => d.state === 'connected').map(d => d.name).join(', '); }
+    const ok = await setupMidi(true);
+    if (ok) { activeInput = 'midi'; label = 'MIDI : ' + midi.connectedDevices().map(d => d.name).join(', '); }
     else if (!MidiInput.supported) label = 'Clavier à l’écran (ce navigateur ne gère pas le Web MIDI)';
     else label = 'Clavier à l’écran (aucun piano MIDI détecté)';
   }
@@ -69,7 +69,7 @@ async function activateInputs() {
 function updateInputStatus(label) {
   const el = $('#input-status');
   if (!label) {
-    const devs = midi.devices().filter(d => d.state === 'connected');
+    const devs = midi.connectedDevices();
     if (activeInput === 'midi' && devs.length) label = 'MIDI : ' + devs.map(d => d.name).join(', ');
     else if (MidiInput.supported && devs.length) label = 'MIDI détecté : ' + devs[0].name;
     else if (settings.input === 'screen') label = 'Clavier à l’écran';
@@ -162,6 +162,8 @@ function renderSettings() {
         <label class="radio"><input type="checkbox" id="midi-sound" ${settings.midiSound ? 'checked' : ''}> Faire sonner les notes MIDI dans l’appli (si ton piano est muet)</label>
         <p>Test : joue une note sur le piano, elle s’affiche ici → <span class="detected" id="midi-detected"></span></p>
       ` : '<p>Web MIDI n’est pas disponible dans ce navigateur.</p>'}
+      <details class="diag"><summary>Diagnostic MIDI (en cas de problème)</summary><pre id="midi-diag"></pre>
+        <p><button class="btn" id="btn-midi-request">Redemander l’accès MIDI</button> <button class="btn" id="btn-midi-copy">Copier le diagnostic</button></p></details>
     </div>
     <div class="setting">
       <h3>Son et affichage</h3>
@@ -182,7 +184,17 @@ function renderSettings() {
     updateInputStatus(); renderSettings();
   }));
   const scan = root.querySelector('#btn-midi-scan');
-  if (scan) scan.addEventListener('click', async () => { await setupMidi(); updateInputStatus(); renderSettings(); });
+  if (scan) scan.addEventListener('click', async () => { await setupMidi(true); updateInputStatus(); renderSettings(); });
+  const diag = root.querySelector('#midi-diag');
+  const refreshDiag = () => { if (diag) diag.textContent = JSON.stringify(midi.diagnostic(), null, 1) + '\n' + midi.log.join('\n'); };
+  refreshDiag();
+  clearInterval(renderSettings.diagTimer);
+  renderSettings.diagTimer = setInterval(() => { if (!root.hidden) refreshDiag(); }, 1000);
+  root.querySelector('#btn-midi-request').addEventListener('click', async () => { await setupMidi(true); updateInputStatus(); renderSettings(); });
+  root.querySelector('#btn-midi-copy').addEventListener('click', async () => {
+    const txt = diag ? diag.textContent : '';
+    try { await navigator.clipboard.writeText(txt); alert('Diagnostic copié.'); } catch (e) { prompt('Copie ce texte :', txt); }
+  });
   const sel = root.querySelector('#midi-device');
   if (sel) sel.addEventListener('change', () => { settings.midiDevice = sel.value; midi.select(sel.value); save(); });
   const ms = root.querySelector('#midi-sound');
@@ -372,9 +384,15 @@ renderLessons();
 renderSongs();
 renderSettings();
 updateInputStatus();
-if (settings.input !== 'screen' && MidiInput.supported) {
-  // Sur Chrome, requestMIDIAccess est possible sans geste ; on tente pour afficher l'état.
-  setupMidi().then(() => updateInputStatus()).catch(() => {});
+if (settings.input !== 'screen') {
+  // requestMIDIAccess est possible sans geste ; on tente pour afficher l'état.
+  // Certains navigateurs iPad injectent Web MIDI après le chargement : on réessaie plusieurs fois.
+  const tryMidi = (attempt) => {
+    if (MidiInput.supported) { setupMidi(attempt > 0).then(() => { updateInputStatus(); renderSettings(); }).catch(() => {}); if (attempt < 2) setTimeout(() => tryMidi(attempt + 1), 2500); }
+    else if (attempt < 6) setTimeout(() => tryMidi(attempt + 1), 700);
+    else updateInputStatus();
+  };
+  tryMidi(0);
 }
 if ('serviceWorker' in navigator && location.protocol === 'https:') {
   navigator.serviceWorker.register('sw.js').catch(() => {});
